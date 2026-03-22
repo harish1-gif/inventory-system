@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-gray-50 text-gray-900 text-sm; }
+}
+@layer components {
+  .btn           { @apply px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm cursor-pointer hover:bg-gray-50 transition-colors; }
+  .btn-primary   { @apply px-3 py-1.5 rounded-lg bg-brand text-white text-sm cursor-pointer hover:bg-brand-dark border border-brand transition-colors; }
+  .btn-b2b       { @apply px-3 py-1.5 rounded-lg bg-b2b text-white text-sm cursor-pointer hover:bg-emerald-700 border border-b2b transition-colors; }
+  .btn-sm        { @apply px-2.5 py-1 text-xs rounded-md; }
+  .btn-danger    { @apply px-3 py-1.5 rounded-lg bg-red-500 text-white text-sm cursor-pointer hover:bg-red-600; }
+  .card          { @apply bg-white border border-gray-100 rounded-xl p-4 mb-4; }
+  .input         { @apply w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand; }
+  .input-inline  { @apply px-1.5 py-0.5 border border-brand rounded text-xs bg-white focus:outline-none w-full; }
+  .label         { @apply block text-xs text-gray-500 mb-1; }
+  .badge         { @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium; }
+  .badge-ok      { @apply bg-green-50 text-green-800; }
+  .badge-warn    { @apply bg-amber-50 text-amber-800; }
+  .badge-danger  { @apply bg-red-50 text-red-800; }
+  .badge-blue    { @apply bg-blue-50 text-blue-800; }
+  .badge-gray    { @apply bg-gray-100 text-gray-700; }
+  .badge-purple  { @apply bg-purple-50 text-purple-800; }
+  .badge-b2c     { @apply bg-blue-50 text-blue-800; }
+  .badge-b2b     { @apply bg-emerald-50 text-emerald-800; }
+  .role-admin    { @apply bg-red-50 text-red-800; }
+  .role-manager  { @apply bg-purple-50 text-purple-800; }
+  .role-technician { @apply bg-amber-50 text-amber-800; }
+  .th            { @apply text-left px-3 py-2 text-xs font-medium text-gray-500 border-b border-gray-100 whitespace-nowrap; }
+  .td            { @apply px-3 py-2 border-b border-gray-50 text-xs; }
+  .page-title    { @apply text-base font-medium mb-4; }
+  .section-title { @apply text-xs font-medium text-gray-500 border-b border-gray-100 pb-1 mb-3; }
+  .tab-btn       { @apply px-4 py-2 text-sm font-medium border-b-2 transition-colors; }
+  .tab-active    { @apply border-brand text-brand; }
+  .tab-inactive  { @apply border-transparent text-gray-500 hover:text-gray-700; }
+}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #f9fafb; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+input[type=range] { @apply w-full accent-brand; }
