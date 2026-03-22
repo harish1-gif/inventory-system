@@ -8,11 +8,11 @@ export const fmtNum = n => Number(Math.round(Number(n)||0)).toLocaleString('en-I
 
 export const CAT_COLORS = {
   stock:'#185FA5', bagstock:'#854F0B', job:'#3B6D11',
-  kpi:'#534AB7', zone:'#0F6E56', settings:'#5F5E5A', customer:'#993C1D'
+  zone:'#0F6E56', settings:'#5F5E5A', customer:'#993C1D'
 }
 export const CAT_LABELS = {
   stock:'Stock', bagstock:'Bag Stock', job:'Job',
-  kpi:'KPI', zone:'Zone', settings:'Settings', customer:'Customer'
+  zone:'Zone', settings:'Settings', customer:'Customer'
 }
 
 /** Write a permanent log entry to update_log */

@@ -10,9 +10,12 @@ import Jobs       from './pages/Jobs'
 import TechTracker from './pages/TechTracker'
 import BagStock   from './pages/BagStock'
 import Analytics  from './pages/Analytics'
-import KPI        from './pages/KPI'
+import Product    from './pages/Product'
+import Customers  from './pages/Customers'
+import OnlineOrders from './pages/OnlineOrders'
 import Updates    from './pages/Updates'
 import Users      from './pages/Users'
+import Settings   from './pages/Settings'
 
 function Protected({ children, roles }) {
   const { user } = useAuth()
@@ -34,9 +37,12 @@ function AppRoutes() {
         <Route path="tracker"    element={<TechTracker />} />
         <Route path="bagstock"   element={<BagStock />} />
         <Route path="analytics"  element={<Protected roles={['admin','manager']}><Analytics /></Protected>} />
-        <Route path="kpi"        element={<KPI />} />
+        <Route path="product"    element={<Product />} />
+        <Route path="customers"  element={<Customers />} />
+        <Route path="online"     element={<OnlineOrders />} />
         <Route path="updates"    element={<Protected roles={['admin','manager']}><Updates /></Protected>} />
         <Route path="users"      element={<Protected roles={['admin','manager']}><Users /></Protected>} />
+        <Route path="settings"   element={<Protected roles={['admin']}><Settings /></Protected>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

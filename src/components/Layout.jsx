@@ -12,9 +12,12 @@ const NAV = [
   { to:'/tracker',     label:'Tech Tracker', icon:'⊙', roles:['admin','manager','technician'] },
   { to:'/bagstock',    label:'Bag Stock',    icon:'◫', roles:['admin','manager','technician'] },
   { to:'/analytics',   label:'Analytics',    icon:'◉', roles:['manager'] },
-  { to:'/kpi',         label:'KPI',          icon:'★', roles:['admin','manager','technician'] },
+  { to:'/product',     label:'Product',      icon:'◈', roles:['admin','manager','technician'] },
+  { to:'/customers',   label:'Customers',    icon:'👥', roles:['admin','manager','technician'] },
+  { to:'/online',      label:'Online Orders',icon:'🛒', roles:['admin','manager','technician'] },
   { to:'/updates',     label:'Updates',      icon:'◑', roles:['admin','manager'] },
   { to:'/users',       label:'Users',        icon:'⊞', roles:['admin','manager'] },
+  { to:'/settings',    label:'Settings',     icon:'⚙', roles:['admin'] },
 ]
 
 export default function Layout() {

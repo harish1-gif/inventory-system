@@ -1,0 +1,298 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import { useBusiness } from '../context/BusinessContext'
+import { format } from 'date-fns'
+import { fmt12, fmtM, fmtNum } from '../lib/utils'
+import Modal, { ModalFooter } from '../components/Modal'
+
+export default function OnlineOrders() {
+  const { user } = useAuth()
+  const { business } = useBusiness()
+  const [orders, setOrders] = useState([])
+  const [stocks, setStocks] = useState([])
+  const [addModal, setAddModal] = useState(false)
+  const [form, setForm] = useState({
+    order_number: '', stock_id: '', quantity_ordered: 1, customer_name: '',
+    platform: 'Direct', order_price: '', order_date: format(new Date(), 'yyyy-MM-dd'),
+  })
+  const canEdit = user.role === 'admin' || user.role === 'manager'
+  const today = format(new Date(), 'yyyy-MM-dd')
+
+  useEffect(() => { load() }, [business])
+
+  async function load() {
+    const [ordersRes, stocksRes] = await Promise.all([
+      supabase.from('online_orders').select('*').eq('business', business).order('created_at', { ascending: false }),
+      supabase.from('stock').select('*').eq('business', business).order('name'),
+    ])
+    setOrders(ordersRes.data || [])
+    setStocks(stocksRes.data || [])
+  }
+
+  async function addOrder() {
+    if (!form.order_number || !form.stock_id || !form.quantity_ordered) return
+    
+    // Get stock to deduct
+    const stock = stocks.find(s => s.id === form.stock_id)
+    if (!stock) return
+
+    try {
+      // Add order
+      await supabase.from('online_orders').insert({
+        order_number: form.order_number,
+        order_date: form.order_date,
+        stock_id: form.stock_id,
+        stock_name: stock.name,
+        business: business,
+        quantity_ordered: Number(form.quantity_ordered),
+        customer_name: form.customer_name || 'Online Customer',
+        platform: form.platform,
+        order_price: Number(form.order_price) || 0,
+        created_by: user.name,
+        status: 'completed',
+      })
+
+      // Auto-deduct from stock
+      const newQty = Math.max(0, stock.qty - Number(form.quantity_ordered))
+      await supabase.from('stock').update({ qty: newQty }).eq('id', form.stock_id)
+
+      // Log movement
+      await supabase.from('stock_movements').insert({
+        stock_id: form.stock_id,
+        stock_name: stock.name,
+        business: business,
+        type: 'dispatch',
+        qty_change: -Number(form.quantity_ordered),
+        qty_before: stock.qty,
+        qty_after: newQty,
+        selling_price: stock.selling_price,
+        note: `Online order ${form.order_number} via ${form.platform}`,
+        by_name: user.name,
+        by_role: user.role,
+      })
+
+      // Audit log
+      await supabase.from('update_log').insert({
+        by_user_id: user.id, by_name: user.name, by_role: user.role,
+        category: 'stock',
+        description: `Online order created: ${form.order_number} · ${stock.name} × ${form.quantity_ordered}`,
+      })
+
+      setAddModal(false)
+      setForm({ order_number: '', stock_id: '', quantity_ordered: 1, customer_name: '', platform: 'Direct', order_price: '', order_date: today })
+      load()
+    } catch (err) {
+      console.error('Error adding order:', err)
+      alert('Failed to add order')
+    }
+  }
+
+  // Calculate stats
+  const todayOrders = orders.filter(o => o.order_date === today)
+  const stockMap = {}
+  stocks.forEach(s => {
+    stockMap[s.id] = { ...s, todaySold: 0 }
+  })
+  todayOrders.forEach(o => {
+    if (stockMap[o.stock_id]) stockMap[o.stock_id].todaySold += o.quantity_ordered
+  })
+
+  const stats = {
+    totalOrders: orders.length,
+    todayCount: todayOrders.length,
+    outOfStock: stocks.filter(s => s.qty === 0).length,
+    lowStock: stocks.filter(s => s.qty > 0 && s.qty <= s.min_qty).length,
+    totalSoldToday: todayOrders.reduce((a, b) => a + b.quantity_ordered, 0),
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="page-title mb-0">Online Orders Stock Tracker ({business.toUpperCase()})</h1>
+        {canEdit && (
+          <button className="btn-primary btn-sm rounded-lg" onClick={() => setAddModal(true)}>
+            + New Order
+          </button>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-5 gap-3 mb-4">
+        {[
+          { label: 'Total Orders', value: stats.totalOrders, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Today Orders', value: stats.todayCount, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Sold Today', value: stats.totalSoldToday, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Out of Stock', value: stats.outOfStock, color: 'text-red-600', bg: 'bg-red-50' },
+          { label: 'Low Stock', value: stats.lowStock, color: 'text-amber-600', bg: 'bg-amber-50' },
+        ].map(card => (
+          <div key={card.label} className={`${card.bg} rounded-lg p-3 text-center`}>
+            <div className="text-xs text-gray-500 mb-1">{card.label}</div>
+            <div className={`text-2xl font-bold ${card.color}`}>{card.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Stock Status Table */}
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden mb-4">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <h3 className="text-sm font-semibold">Stock Status & Today's Sales</h3>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="th">Item Name</th>
+              <th className="th">Current Qty</th>
+              <th className="th">Min Qty</th>
+              <th className="th">Sold Today</th>
+              <th className="th">Remaining</th>
+              <th className="th">Price</th>
+              <th className="th">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stocks.map(stock => {
+              const todaySold = stockMap[stock.id]?.todaySold || 0
+              const status = stock.qty === 0 ? 'out' : stock.qty <= stock.min_qty ? 'low' : 'ok'
+              const statusClass = status === 'out' ? 'badge-danger' : status === 'low' ? 'badge-warn' : 'badge-ok'
+              return (
+                <tr key={stock.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="td font-medium">{stock.name}</td>
+                  <td className="td">
+                    <span className="font-bold text-lg">{fmtNum(stock.qty)}</span>
+                  </td>
+                  <td className="td text-gray-400">{fmtNum(stock.min_qty)}</td>
+                  <td className="td">
+                    <span className="badge badge-blue">{todaySold}</span>
+                  </td>
+                  <td className="td">
+                    <span className={`font-medium ${stock.qty <= stock.min_qty ? 'text-red-600' : 'text-green-600'}`}>
+                      {fmtNum(stock.qty)}
+                    </span>
+                  </td>
+                  <td className="td text-blue-600 font-medium">{fmtM(stock.selling_price)}</td>
+                  <td className="td">
+                    <span className={`badge ${statusClass}`}>
+                      {status === 'out' ? '🔴 OUT' : status === 'low' ? '🟡 LOW' : '🟢 OK'}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        {stocks.length === 0 && <p className="text-xs text-gray-400 text-center py-6">No stock found</p>}
+      </div>
+
+      {/* Today's Orders Table */}
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <h3 className="text-sm font-semibold">Today's Online Orders ({todayOrders.length})</h3>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="th">Order #</th>
+              <th className="th">Item</th>
+              <th className="th">Qty</th>
+              <th className="th">Price</th>
+              <th className="th">Total</th>
+              <th className="th">Platform</th>
+              <th className="th">Customer</th>
+              <th className="th">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {todayOrders.map(order => (
+              <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50">
+                <td className="td font-medium">{order.order_number}</td>
+                <td className="td">{order.stock_name}</td>
+                <td className="td">
+                  <span className="badge badge-blue">{order.quantity_ordered}</span>
+                </td>
+                <td className="td">{fmtM(order.order_price)}</td>
+                <td className="td font-medium text-blue-600">{fmtM(order.quantity_ordered * order.order_price)}</td>
+                <td className="td">
+                  <span className="text-gray-500 text-xs">{order.platform}</span>
+                </td>
+                <td className="td text-gray-500">{order.customer_name}</td>
+                <td className="td text-gray-400">{format(new Date(order.created_at), 'HH:mm')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {todayOrders.length === 0 && <p className="text-xs text-gray-400 text-center py-6">No orders today</p>}
+      </div>
+
+      {/* Add Order Modal */}
+      {addModal && (
+        <Modal title="Create Online Order" onClose={() => setAddModal(false)} size="lg">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Order Number *</label>
+                <input className="input" placeholder="e.g., ORD-20260322-001" value={form.order_number} onChange={e => setForm(f => ({ ...f, order_number: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Order Date *</label>
+                <input type="date" className="input" value={form.order_date} onChange={e => setForm(f => ({ ...f, order_date: e.target.value }))} />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Select Item *</label>
+              <select className="input" value={form.stock_id} onChange={e => {
+                const stock = stocks.find(s => s.id === e.target.value)
+                setForm(f => ({ ...f, stock_id: e.target.value, order_price: stock?.selling_price || 0 }))
+              }}>
+                <option value="">-- Select Item --</option>
+                {stocks.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} (Qty: {s.qty}, Min: {s.min_qty})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Quantity Ordered *</label>
+                <input type="number" min="1" className="input" value={form.quantity_ordered} onChange={e => setForm(f => ({ ...f, quantity_ordered: parseInt(e.target.value) || 1 }))} />
+              </div>
+              <div>
+                <label className="label">Platform</label>
+                <select className="input" value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}>
+                  <option>Direct</option>
+                  <option>Flipkart</option>
+                  <option>Amazon</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Unit Price ₹</label>
+                <input type="number" className="input" value={form.order_price} onChange={e => setForm(f => ({ ...f, order_price: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <div>
+                <label className="label">Customer Name</label>
+                <input className="input" placeholder="Online Customer" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 rounded-lg p-3 text-xs">
+              <div className="font-medium text-blue-900">Order Summary:</div>
+              <div className="text-blue-700 mt-1">
+                {form.quantity_ordered} × {fmtM(form.order_price)} = <span className="font-bold">{fmtM(form.quantity_ordered * form.order_price)}</span>
+              </div>
+              <div className="text-blue-600 mt-1">Stock will be auto-deducted from inventory</div>
+            </div>
+          </div>
+          <ModalFooter>
+            <button className="btn" onClick={() => setAddModal(false)}>Cancel</button>
+            <button className="btn-primary rounded-lg px-4 py-1.5 text-sm" onClick={addOrder}>Create Order</button>
+          </ModalFooter>
+        </Modal>
+      )}
+    </div>
+  )
+}

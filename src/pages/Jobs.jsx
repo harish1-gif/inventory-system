@@ -9,6 +9,7 @@ export default function Jobs() {
   const [jobs, setJobs]    = useState([])
   const [zones, setZones]  = useState([])
   const [techs, setTechs]  = useState([])
+  const [customers, setCustomers] = useState([])
   const [zoneTechs, setZT] = useState([])
   const [modal, setModal]  = useState(false)
   const [filter, setFilter]= useState('all')
@@ -16,7 +17,7 @@ export default function Jobs() {
   const isTech = user.role === 'technician'
   const canCreate = !isTech
 
-  const blank = { customer_name:'', customer_location:'', zone_id:'', assigned_to:'', assigned_to_name:'',
+  const blank = { customer_id:'', customer_name:'', customer_location:'', zone_id:'', assigned_to:'', assigned_to_name:'',
     service_type:'General Service', working_hours_allowed:2, long_distance:false,
     extra_hours_approved:0, notes:'' }
   const [form, setForm] = useState(blank)
@@ -27,15 +28,17 @@ export default function Jobs() {
     const jQ = isTech
       ? supabase.from('jobs').select('*,zones(name,color)').eq('assigned_to', user.id).order('created_at',{ascending:false})
       : supabase.from('jobs').select('*,zones(name,color)').order('created_at',{ascending:false})
-    const [j, z, u, zt] = await Promise.all([
+    const [j, z, u, c, zt] = await Promise.all([
       jQ,
       supabase.from('zones').select('*').order('km_from_kpm'),
       supabase.from('app_users').select('id,name').eq('role','technician').eq('status','active'),
+      supabase.from('customers').select('id,name,address,area').order('name'),
       supabase.from('zone_technicians').select('*'),
     ])
     setJobs(j.data||[])
     setZones(z.data||[])
     setTechs(u.data||[])
+    setCustomers(c.data||[])
     setZT(zt.data||[])
   }
 
@@ -46,7 +49,20 @@ export default function Jobs() {
   async function saveJob() {
     if (!form.customer_name.trim()) return
     const t = techs.find(t=>t.id===form.assigned_to)
-    const payload = { ...form, assigned_to_name: t?.name||'', created_by: user.name, status:'pending' }
+    const payload = {
+      customer_name: form.customer_name,
+      customer_location: form.customer_location,
+      zone_id: form.zone_id,
+      assigned_to: form.assigned_to,
+      assigned_to_name: t?.name||'',
+      service_type: form.service_type,
+      working_hours_allowed: form.working_hours_allowed,
+      long_distance: form.long_distance,
+      extra_hours_approved: form.extra_hours_approved,
+      notes: form.notes,
+      created_by: user.name,
+      status:'pending'
+    }
     await supabase.from('jobs').insert(payload)
     const z = zones.find(z=>z.id===form.zone_id)
     await logAction(user, 'job',
@@ -112,7 +128,23 @@ export default function Jobs() {
       {modal && (
         <Modal title="New job assignment" onClose={()=>setModal(false)} size="lg">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Customer name</label><input className="input" value={form.customer_name} onChange={e=>setForm(f=>({...f,customer_name:e.target.value}))}/></div>
+            <div>
+              <label className="label">Select Customer</label>
+              <select className="input" value={form.customer_id} onChange={e=>{
+                const customer = customers.find(c=>c.id===e.target.value)
+                setForm(f=>({
+                  ...f,
+                  customer_id: e.target.value,
+                  customer_name: customer?.name || '',
+                  customer_location: customer ? `${customer.address} ${customer.area}`.trim() : '',
+                }))
+              }}>
+                <option value="">Choose customer…</option>
+                {customers.map(c=>(
+                  <option key={c.id} value={c.id}>{c.name} {c.area ? `(${c.area})` : ''}</option>
+                ))}
+              </select>
+            </div>
             <div><label className="label">Location / address</label><input className="input" value={form.customer_location} onChange={e=>setForm(f=>({...f,customer_location:e.target.value}))}/></div>
             <div>
               <label className="label">Zone</label>

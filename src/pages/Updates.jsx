@@ -49,7 +49,7 @@ export default function Updates() {
   const byCategory = {}
   filtered.forEach(l=>{ if(!byCategory[l.category])byCategory[l.category]=[]; byCategory[l.category].push(l) })
 
-  const CAT_ICONS = { stock:'📦', bagstock:'🎒', job:'🔧', kpi:'🎯', zone:'📍', settings:'⚙️', customer:'👤' }
+  const CAT_ICONS = { stock:'📦', bagstock:'🎒', job:'🔧', zone:'📍', settings:'⚙️', customer:'👤' }
 
   return (
     <div>

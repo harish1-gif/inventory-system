@@ -13,9 +13,14 @@ drop table if exists extra_hours_requests     cascade;
 drop table if exists job_time_log             cascade;
 drop table if exists bag_stock_log            cascade;
 drop table if exists bag_stock                cascade;
+drop table if exists online_orders            cascade;
+drop table if exists service_calls            cascade;
+drop table if exists purifiers                cascade;
+drop table if exists customers                cascade;
 drop table if exists jobs                     cascade;
 drop table if exists zone_technicians         cascade;
 drop table if exists zones                    cascade;
+drop table if exists products                 cascade;
 drop table if exists stock_movements          cascade;
 drop table if exists stock                    cascade;
 drop table if exists update_log               cascade;
@@ -85,6 +90,82 @@ create table stock_movements (
   by_name       text,
   by_role       text,
   created_at    timestamptz default now()
+);
+
+create table products (
+  id          uuid primary key default uuid_generate_v4(),
+  type        text not null check (type in ('b2c','b2b')),
+  name        text not null,
+  model       text not null,
+  description text default '',
+  category    text default 'General',
+  price       numeric(10,2) default 0,
+  image_url   text,
+  created_at  timestamptz default now()
+);
+
+create table customers (
+  id                uuid primary key default uuid_generate_v4(),
+  name              text not null,
+  mobile            text not null,
+  address           text default '',
+  area              text default '',
+  business_type     text not null check (business_type in ('b2c','b2b')),
+  since             date,
+  status            text default 'pending' check (status in ('pending','completed','rejected')),
+  status_changed_at timestamptz,
+  status_changed_by uuid,
+  status_note       text default '',
+  created_at        timestamptz default now()
+);
+
+create table purifiers (
+  id                uuid primary key default uuid_generate_v4(),
+  customer_id       uuid references customers(id) on delete cascade,
+  model             text not null,
+  serial_no         text not null,
+  installed_date    date,
+  last_service_date date,
+  total_services    int default 4,
+  interval_days     int default 90,
+  done_count        int default 0,
+  image_url         text,
+  status            text default 'active' check (status in ('active','inactive')),
+  created_at        timestamptz default now()
+);
+
+create table service_calls (
+  id                uuid primary key default uuid_generate_v4(),
+  customer_id       uuid references customers(id) on delete cascade,
+  call_datetime     timestamptz not null,
+  total_amount      numeric(10,2) default 0,
+  received_amount   numeric(10,2) default 0,
+  pending_amount    numeric(10,2) default 0,
+  payment_mode      text default 'CASH',
+  admin_note        text default '',
+  status            text default 'pending' check (status in ('pending','complete')),
+  completed_at      timestamptz,
+  completed_by_name text,
+  spares_replaced   text default '',
+  assigned_to       uuid references app_users(id),
+  created_at        timestamptz default now()
+);
+
+create table online_orders (
+  id               uuid primary key default uuid_generate_v4(),
+  order_number     text unique not null,
+  order_date       date not null,
+  stock_id         uuid references stock(id) on delete cascade,
+  stock_name       text not null,
+  business         text not null check (business in ('b2c','b2b')),
+  quantity_ordered int not null,
+  customer_name    text default 'Online Customer',
+  status           text default 'completed' check (status in ('pending','completed','cancelled','returned')),
+  platform         text default 'Direct' check (platform in ('Direct','Flipkart','Amazon','Other')),
+  order_price      numeric(10,2) default 0,
+  notes            text default '',
+  created_by       text,
+  created_at       timestamptz default now()
 );
 
 create table zones (
@@ -343,6 +424,38 @@ insert into stock (business, name, category, qty, min_qty, landing_price, purcha
   ('b2b','TDS Controller',           'Electronic',    12, 3,  600,  720, 1400,'MANAGER'),
   ('b2b','Dosing Pump',              'Pump',           4, 2, 3200, 3700, 6500,'MANAGER'),
   ('b2b','UV System 10 LPM',         'UV',             3, 1, 4500, 5200, 9000,'MANAGER');
+
+-- ============================================================
+-- B2C PRODUCTS — Retail Items
+-- ============================================================
+insert into products (type, name, model, description, category, price) values
+  ('b2c','KENT RO Water Purifier','KENT UP', 'Standard wall-mounted RO purifier', 'Water Purifier', 12500),
+  ('b2c','Dolphin RO Water Purifier','DX3', 'Compact RO system for homes', 'Water Purifier', 9800),
+  ('b2c','Aquaguard RO System','AU55', 'Advanced RO with UV and TDS display', 'Water Purifier', 14999),
+  ('b2c','RO Spare Parts Kit','BASIC-KIT', 'Complete filter set for 1 year maintenance', 'Maintenance Kit', 2500),
+  ('b2c','Membrane Replacement','75GPD-MEM', 'Original brand membrane for upgrade', 'Spare Parts', 1200),
+  ('b2c','Water Softener Cartridge','SOFT-25', 'Removes hard water minerals', 'Spare Parts', 1800),
+  ('b2c','Installation Service','INST-SVC', 'Professional installation with pipe fitting', 'Service', 500),
+  ('b2c','Annual Maintenance Plan','AMP-BC', 'Includes 2 service calls + parts replacement', 'Service Plan', 1500),
+  ('b2c','UV Lamp Replacement','UV-15W', 'Bacteria-killing UV lamp', 'Spare Parts', 450),
+  ('b2c','Water Purifier Filter Combo','3-COMBO', 'Sediment + Carbon + RO membrane bundle', 'Filter Pack', 3500);
+
+-- ============================================================
+-- B2B PRODUCTS — Commercial Solutions
+-- ============================================================
+insert into products (type, name, model, description, category, price) values
+  ('b2b','Commercial RO System 500 LPH','CR-500', 'For offices, schools, hospitals (500 L/hour)', 'Commercial RO', 35000),
+  ('b2b','Commercial RO System 1000 LPH','CR-1000', 'High capacity for factories, farms (1000 L/hour)', 'Commercial RO', 65000),
+  ('b2b','Industrial Water Softener 500 LPH','SOFT-500', 'Removes hardness for industrial use', 'Softener', 28000),
+  ('b2b','Solar RO System 100 LPH','SOLAR-100', 'Off-grid solar powered water purification', 'Solar RO', 55000),
+  ('b2b','Water Vending Machine','VEND-PRO', 'Automated coin/card operated water dispenser', 'Vending', 95000),
+  ('b2b','Mineral Water Plant Starter Kit','MWP-KIT', 'Complete system to start mineral water business', 'Business Kit', 145000),
+  ('b2b','Bulk RO Membrane 4040','MEM-4040', 'Commercial grade membrane (pack of 5)', 'Membrane', 32000),
+  ('b2b','Industrial Pump 2 HP','PUMP-2HP', 'Heavy duty pump for continuous operation', 'Pump', 12500),
+  ('b2b','Water Tank 1000L Stainless','TANK-1K', 'Food-grade stainless storage tank', 'Tank', 18000),
+  ('b2b','Maintenance Subscription B2B','MAINT-PRO', 'Quarterly visits + parts + emergency support', 'Service Plan', 5000),
+  ('b2b','RO System Upgrade Package','UPGRADE-PRO', 'Upgrade old system to advanced technology', 'Service', 15000),
+  ('b2b','Antiscalant & Chemicals Bundle','CHEM-BULK', '5L antiscalant + test kit + documentation', 'Chemicals', 2200);
 
 -- ============================================================
 -- JOBS (10 demo jobs)
