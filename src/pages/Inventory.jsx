@@ -28,7 +28,7 @@ export default function Inventory() {
   useEffect(() => { load() }, [business])
 
   async function load() {
-    const { data } = await supabase.from('stock').select('*').eq('business', business).order('name')
+    const { data } = await supabase.from('stock').select('*').eq('business', business).order('selling_price', { ascending: false }).order('qty', { ascending: false })
     setItems(data || [])
   }
 

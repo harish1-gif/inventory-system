@@ -11,18 +11,22 @@ const STATUS_COLORS = {
 }
 const STATUS_LABELS = { pending:'Pending', completed:'Completed', rejected:'Rejected' }
 
+const SOURCE_COLORS = { online:'badge-blue', offline:'badge-gray' }
+const SOURCE_LABELS = { online:'Online', offline:'Offline' }
+
 export default function Customers() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('b2c')
   const [customers, setCustomers] = useState([])
   const [search, setSearch]       = useState('')
   const [filterStatus, setFilter] = useState('all')
+  const [filterSource, setFilterSource] = useState('all')
   const [addModal, setAddModal]   = useState(false)
   const [editModal, setEditModal] = useState(null)
   const [profile, setProfile]     = useState(null)
   const [statusModal, setStatusModal] = useState(null)
   const [payModal, setPayModal]   = useState(null)
-  const [form, setForm]           = useState({ name:'', mobile:'', address:'', area:'', business_type:'b2c', since: new Date().toISOString().split('T')[0] })
+  const [form, setForm]           = useState({ name:'', mobile:'', address:'', area:'', business_type:'b2c', source:'offline', since: new Date().toISOString().split('T')[0] })
   const canEdit     = user.role === 'admin' || user.role === 'manager'
   const canSeeNotes = user.role !== 'technician'
 
@@ -48,7 +52,7 @@ export default function Customers() {
 
   async function addCustomer() {
     if (!form.name || !form.mobile) return
-    await supabase.from('customers').insert({ ...form, business_type: activeTab, status:'pending' })
+    await supabase.from('customers').insert({ ...form, business_type: activeTab, source: form.source || 'offline', status:'pending' })
     await supabase.from('update_log').insert({
       by_user_id: user.id, by_name: user.name, by_role: user.role,
       category: 'customer', description: `New ${activeTab.toUpperCase()} customer added: ${form.name}`
@@ -124,10 +128,17 @@ export default function Customers() {
 
   const filtered = customers
     .filter(c => filterStatus==='all' ? true : c.status===filterStatus)
+    .filter(c => filterSource==='all' ? true : c.source===filterSource)
     .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.mobile.includes(search))
 
   // Stats
-  const counts = { pending: customers.filter(c=>c.status==='pending').length, completed: customers.filter(c=>c.status==='completed').length, rejected: customers.filter(c=>c.status==='rejected').length }
+  const counts = {
+    pending: customers.filter(c=>c.status==='pending').length,
+    completed: customers.filter(c=>c.status==='completed').length,
+    rejected: customers.filter(c=>c.status==='rejected').length,
+    online: customers.filter(c=>c.source==='online').length,
+    offline: customers.filter(c=>c.source==='offline').length,
+  }
 
   return (
     <div>
@@ -163,7 +174,7 @@ export default function Customers() {
         </div>
       </div>
 
-      {/* Status filter + counts */}
+      {/* Status + Source filter + counts */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {[
           { key:'all',       label:`All (${customers.length})` },
@@ -178,11 +189,24 @@ export default function Customers() {
           </button>
         ))}
       </div>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[
+          { key:'all', label:`All (${customers.length})` },
+          { key:'online', label:`Online (${counts.online})`, cls:'text-blue-700 border-blue-200 bg-blue-50' },
+          { key:'offline', label:`Offline (${counts.offline})`, cls:'text-gray-700 border-gray-200 bg-gray-50' },
+        ].map(tab=>(
+          <button key={tab.key} onClick={()=>setFilterSource(tab.key)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors
+              ${filterSource===tab.key ? (tab.cls||'bg-brand text-white border-brand') : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <table className="w-full text-xs">
           <thead><tr>
-            <th className="th">Name</th><th className="th">Mobile</th><th className="th">Area</th>
+            <th className="th">Name</th><th className="th">Mobile</th><th className="th">Area</th><th className="th">Source</th>
             <th className="th">Purifiers</th><th className="th">Last service</th>
             <th className="th">Pending ₹</th><th className="th">Status</th><th className="th"></th>
           </tr></thead>
@@ -199,6 +223,7 @@ export default function Customers() {
                   </td>
                   <td className="td">{c.mobile}</td>
                   <td className="td">{c.area}</td>
+                  <td className="td"><span className={`badge ${SOURCE_COLORS[c.source]||'badge-gray'}`}>{SOURCE_LABELS[c.source]||'Unknown'}</span></td>
                   <td className="td">{(c.purifiers||[]).map(p=><span key={p.id} className="badge badge-blue mr-1">{p.model}</span>)}</td>
                   <td className="td text-gray-400" style={{fontSize:'11px'}}>{lastSvc}</td>
                   <td className="td">
@@ -246,6 +271,12 @@ export default function Customers() {
             <div><label className="label">Name</label><input className="input" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
             <div><label className="label">Mobile</label><input className="input" value={form.mobile} onChange={e=>setForm(f=>({...f,mobile:e.target.value}))}/></div>
             <div><label className="label">Area</label><input className="input" value={form.area} onChange={e=>setForm(f=>({...f,area:e.target.value}))}/></div>
+            <div><label className="label">Source</label>
+              <select className="input" value={form.source} onChange={e=>setForm(f=>({...f,source:e.target.value}))}>
+                <option value="offline">Offline</option>
+                <option value="online">Online</option>
+              </select>
+            </div>
             <div><label className="label">Customer since</label><input type="date" className="input" value={form.since} onChange={e=>setForm(f=>({...f,since:e.target.value}))}/></div>
             <div className="col-span-2"><label className="label">Address</label><input className="input" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))}/></div>
             <div className="col-span-2">
@@ -270,6 +301,12 @@ export default function Customers() {
             <div><label className="label">Name</label><input className="input" value={editModal.name} onChange={e=>setEditModal(m=>({...m,name:e.target.value}))}/></div>
             <div><label className="label">Mobile</label><input className="input" value={editModal.mobile} onChange={e=>setEditModal(m=>({...m,mobile:e.target.value}))}/></div>
             <div><label className="label">Area</label><input className="input" value={editModal.area} onChange={e=>setEditModal(m=>({...m,area:e.target.value}))}/></div>
+            <div><label className="label">Source</label>
+              <select className="input" value={editModal.source||'offline'} onChange={e=>setEditModal(m=>({...m,source:e.target.value}))}>
+                <option value="offline">Offline</option>
+                <option value="online">Online</option>
+              </select>
+            </div>
             <div><label className="label">Customer since</label><input type="date" className="input" value={editModal.since} onChange={e=>setEditModal(m=>({...m,since:e.target.value}))}/></div>
             <div className="col-span-2"><label className="label">Address</label><input className="input" value={editModal.address||''} onChange={e=>setEditModal(m=>({...m,address:e.target.value}))}/></div>
             <div className="col-span-2">

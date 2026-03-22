@@ -111,6 +111,7 @@ create table customers (
   address           text default '',
   area              text default '',
   business_type     text not null check (business_type in ('b2c','b2b')),
+  source            text not null check (source in ('offline','online')) default 'offline',
   since             date,
   status            text default 'pending' check (status in ('pending','completed','rejected')),
   status_changed_at timestamptz,

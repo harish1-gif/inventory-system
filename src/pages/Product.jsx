@@ -34,6 +34,7 @@ export default function Product() {
       .from('products')
       .select('*')
       .eq('type', business)
+      .order('price', { ascending: false })
       .order('created_at', { ascending: false })
     setProducts(data || [])
   }
