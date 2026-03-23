@@ -17,14 +17,15 @@ export default function Product() {
   const fileRef = useRef(null)
   const canEdit = user.role === 'admin' || user.role === 'manager'
 
+  const [productType, setProductType] = useState('spare')
   const [form, setForm] = useState({
     name: '', model: '', description: '',
-    category: '', price: '', imageFile: null,
+    category: '', price: '', imageFile: null, type: '',
   })
 
   const [editForm, setEditForm] = useState({
     id: '', name: '', model: '', description: '',
-    category: '', price: '', imageFile: null,
+    category: '', price: '', imageFile: null, type: '',
   })
 
   useEffect(() => { load() }, [business])
@@ -38,6 +39,8 @@ export default function Product() {
       .order('created_at', { ascending: false })
     setProducts(data || [])
   }
+
+  const filteredByType = products.filter(p => productType === 'spare' ? p.category !== 'Purifier' : p.category === 'Purifier')
 
   function handleFileChange(e) {
     const file = e.target.files[0]
@@ -60,19 +63,24 @@ export default function Product() {
     if (!form.name || !form.model) return
     setUploading(true)
     const imageUrl = form.imageFile ? await uploadImage(form.imageFile) : null
+    const category = productType === 'purifier' ? 'Purifier' : form.category
     await supabase.from('products').insert({
       type: business,
       name: form.name,
       model: form.model,
       description: form.description,
-      category: form.category,
+      category: category,
       price: Number(form.price),
       image_url: imageUrl,
+    })
+    await supabase.from('update_log').insert({
+      by_user_id: user.id, by_name: user.name, by_role: user.role,
+      category: 'product', description: `New ${productType} added: ${form.name} (${business.toUpperCase()})`
     })
     setUploading(false)
     setAddModal(false)
     setImagePreview(null)
-    setForm({ name: '', model: '', description: '', category: '', price: '', imageFile: null })
+    setForm({ name: '', model: '', description: '', category: '', price: '', imageFile: null, type: '' })
     load()
   }
 
@@ -92,6 +100,8 @@ export default function Product() {
 
   // UPDATE - Edit existing product
   async function openEditModal(product) {
+    const pType = product.category === 'Purifier' ? 'purifier' : 'spare'
+    setProductType(pType)
     setEditForm({
       id: product.id,
       name: product.name,
@@ -100,6 +110,7 @@ export default function Product() {
       category: product.category,
       price: product.price,
       imageFile: null,
+      type: pType,
     })
     setImagePreview(product.image_url || null)
     setEditModal(true)
@@ -110,19 +121,24 @@ export default function Product() {
     if (!editForm.name || !editForm.model) return
     setUploading(true)
     let imageUrl = editForm.imageFile ? await uploadImage(editForm.imageFile) : null
+    const category = productType === 'purifier' ? 'Purifier' : editForm.category
     const updateData = {
       name: editForm.name,
       model: editForm.model,
       description: editForm.description,
-      category: editForm.category,
+      category: category,
       price: Number(editForm.price),
     }
     if (imageUrl) updateData.image_url = imageUrl
     await supabase.from('products').update(updateData).eq('id', editForm.id)
+    await supabase.from('update_log').insert({
+      by_user_id: user.id, by_name: user.name, by_role: user.role,
+      category: 'product', description: `${productType} updated: ${editForm.name}`
+    })
     setUploading(false)
     setEditModal(false)
     setImagePreview(null)
-    setEditForm({ id: '', name: '', model: '', description: '', category: '', price: '', imageFile: null })
+    setEditForm({ id: '', name: '', model: '', description: '', category: '', price: '', imageFile: null, type: '' })
     load()
   }
 
@@ -131,6 +147,10 @@ export default function Product() {
     if (!confirm('Are you sure you want to delete this product?')) return
     setUploading(true)
     await supabase.from('products').delete().eq('id', productId)
+    await supabase.from('update_log').insert({
+      by_user_id: user.id, by_name: user.name, by_role: user.role,
+      category: 'product', description: `Product deleted from ${business.toUpperCase()}`
+    })
     setUploading(false)
     setViewModal(null)
     load()
@@ -147,11 +167,16 @@ export default function Product() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="page-title mb-0">Product Management ({business.toUpperCase()})</h1>
-        {canEdit && (
-          <button className="btn-primary btn-sm rounded-lg" onClick={() => { setImagePreview(null); setAddModal(true) }}>
-            + Add Product
-          </button>
-        )}
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1 text-xs">
+            {['spare', 'purifier'].map(t=>(productType===t?<button key={t} className="px-3 py-1 rounded bg-brand text-white">{t.charAt(0).toUpperCase()+t.slice(1)}s</button>:<button key={t} onClick={()=>setProductType(t)} className="px-3 py-1 text-gray-500 hover:bg-gray-50">{t.charAt(0).toUpperCase()+t.slice(1)}s</button>))}
+          </div>
+          {canEdit && (
+            <button className="btn-primary btn-sm rounded-lg" onClick={() => { setImagePreview(null); setAddModal(true) }}>
+              + Add {productType}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -161,7 +186,7 @@ export default function Product() {
             <th className="th">Price</th><th className="th">Image</th><th className="th"></th>
           </tr></thead>
           <tbody>
-            {products.map(p => (
+            {filteredByType.map(p => (
               <tr key={p.id} className="hover:bg-gray-50">
                 <td className="td font-medium">{p.name}</td>
                 <td className="td">
@@ -194,12 +219,14 @@ export default function Product() {
 
       {/* Add product modal */}
       {addModal && (
-        <Modal title="Add Product" onClose={() => setAddModal(false)} size="lg">
+        <Modal title={`Add ${productType === 'purifier' ? 'Purifier' : 'Spare'}`} onClose={() => setAddModal(false)} size="lg">
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div><label className="label">Name</label><input className="input" placeholder="Product name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
               <div><label className="label">Model</label><input className="input" placeholder="Model number" value={form.model} onChange={e=>setForm(f=>({...f,model:e.target.value}))}/></div>
-              <div><label className="label">Category</label><input className="input" placeholder="Category" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/></div>
+              {productType !== 'purifier' && (
+                <div><label className="label">Category</label><input className="input" placeholder="Category" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/></div>
+              )}
               <div><label className="label">Price</label><input type="number" className="input" placeholder="Price" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/></div>
             </div>
             <div><label className="label">Description</label><textarea className="input" rows="3" placeholder="Description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/></div>
@@ -231,12 +258,14 @@ export default function Product() {
 
       {/* Edit product modal */}
       {editModal && (
-        <Modal title="Edit Product" onClose={() => setEditModal(false)} size="lg">
+        <Modal title={`Edit ${editForm.category === 'Purifier' ? 'Purifier' : 'Spare'}`} onClose={() => setEditModal(false)} size="lg">
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div><label className="label">Name</label><input className="input" placeholder="Product name" value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))}/></div>
               <div><label className="label">Model</label><input className="input" placeholder="Model number" value={editForm.model} onChange={e=>setEditForm(f=>({...f,model:e.target.value}))}/></div>
-              <div><label className="label">Category</label><input className="input" placeholder="Category" value={editForm.category} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))}/></div>
+              {editForm.category !== 'Purifier' && (
+                <div><label className="label">Category</label><input className="input" placeholder="Category" value={editForm.category} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))}/></div>
+              )}
               <div><label className="label">Price</label><input type="number" className="input" placeholder="Price" value={editForm.price} onChange={e=>setEditForm(f=>({...f,price:e.target.value}))}/></div>
             </div>
             <div><label className="label">Description</label><textarea className="input" rows="3" placeholder="Description" value={editForm.description} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))}/></div>

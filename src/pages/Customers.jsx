@@ -26,6 +26,7 @@ export default function Customers() {
   const [profile, setProfile]     = useState(null)
   const [statusModal, setStatusModal] = useState(null)
   const [payModal, setPayModal]   = useState(null)
+  const [purifierModal, setPurifierModal] = useState(null)
   const [form, setForm]           = useState({ name:'', mobile:'', address:'', area:'', business_type:'b2c', source:'offline', since: new Date().toISOString().split('T')[0] })
   const canEdit     = user.role === 'admin' || user.role === 'manager'
   const canSeeNotes = user.role !== 'technician'
@@ -124,6 +125,65 @@ export default function Customers() {
     }).eq('id', svcId)
     if (custId) await openProfile(custId)
     load()
+  }
+
+  // Purifier management
+  async function savePurifier() {
+    if (!purifierModal || !profile) return
+    if (!purifierModal.model || !purifierModal.serial_no) {
+      alert('Model and serial number required'); return
+    }
+    if (purifierModal.id) {
+      // Update existing
+      await supabase.from('purifiers').update({
+        model: purifierModal.model,
+        serial_no: purifierModal.serial_no,
+        installed_date: purifierModal.installed_date,
+        interval_days: purifierModal.interval_days,
+        total_services: purifierModal.total_services,
+        status: purifierModal.status,
+        image_url: purifierModal.image_url,
+      }).eq('id', purifierModal.id)
+      await supabase.from('update_log').insert({
+        by_user_id: user.id, by_name: user.name, by_role: user.role,
+        category: 'customer', description: `Updated purifier ${purifierModal.model} (${purifierModal.serial_no}) for ${profile.cust.name}`
+      })
+    } else {
+      // Create new
+      const uid = user.id || 'anon'
+      const { error } = await supabase.from('purifiers').insert({
+        customer_id: profile.cust.id,
+        model: purifierModal.model,
+        serial_no: purifierModal.serial_no,
+        installed_date: purifierModal.installed_date,
+        interval_days: purifierModal.interval_days,
+        total_services: purifierModal.total_services,
+        done_count: 0,
+        last_service_date: purifierModal.installed_date,
+        status: purifierModal.status,
+        image_url: purifierModal.image_url,
+        created_by: uid,
+      })
+      if (!error) {
+        await supabase.from('update_log').insert({
+          by_user_id: user.id, by_name: user.name, by_role: user.role,
+          category: 'customer', description: `New purifier added: ${purifierModal.model} (${purifierModal.serial_no}) for ${profile.cust.name}`
+        })
+      }
+    }
+    setPurifierModal(null)
+    await openProfile(profile.cust.id)
+  }
+
+  async function deletePurifier(pid) {
+    if (!confirm('Delete this purifier?')) return
+    if (!profile) return
+    await supabase.from('purifiers').delete().eq('id', pid)
+    await supabase.from('update_log').insert({
+      by_user_id: user.id, by_name: user.name, by_role: user.role,
+      category: 'customer', description: `Deleted purifier from ${profile.cust.name}`
+    })
+    await openProfile(profile.cust.id)
   }
 
   const filtered = customers
@@ -427,12 +487,16 @@ export default function Customers() {
 
           {profile.purifs.length>0&&(
             <>
-              <div className="section-title">Purifiers ({profile.purifs.length})</div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="section-title mb-0">Purifiers ({profile.purifs.length})</div>
+                {canEdit && <button className="btn btn-sm text-xs" onClick={()=>setPurifierModal({model:'',serial_no:'',installed_date:new Date().toISOString().split('T')[0],interval_days:90,total_services:4,status:'active',image_url:''})}>+ Add purifier</button>}
+              </div>
               {profile.purifs.map(p=>{
                 const nd=new Date(p.last_service_date);nd.setDate(nd.getDate()+p.interval_days)
                 const left=p.total_services-p.done_count
                 return(
-                  <div key={p.id} className="bg-gray-50 rounded-lg p-3 mb-2">
+                  <div key={p.id} className="bg-gray-50 rounded-lg p-3 mb-2 cursor-pointer hover:bg-gray-100 transition"
+                    onClick={canEdit?()=>setPurifierModal({id:p.id,model:p.model,serial_no:p.serial_no,installed_date:p.installed_date,interval_days:p.interval_days,total_services:p.total_services,status:p.status,image_url:p.image_url}):undefined}>
                     <div className="text-xs font-medium">{p.model} <span className="text-gray-400 font-normal">#{p.serial_no}</span></div>
                     {p.image_url&&<img src={p.image_url} alt={p.model} className="w-full h-24 object-cover rounded mb-2"/>}
                     <div className="text-xs text-gray-500 mb-1">Installed: {p.installed_date} · Next due: {fmtD(nd)}</div>
@@ -446,6 +510,12 @@ export default function Customers() {
                 )
               })}
             </>
+          )}
+          {profile.purifs.length===0&&canEdit&&(
+            <div className="flex items-center justify-between mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <span className="text-xs text-blue-700">No purifiers added yet</span>
+              <button className="btn btn-sm text-xs" onClick={()=>setPurifierModal({model:'',serial_no:'',installed_date:new Date().toISOString().split('T')[0],interval_days:90,total_services:4,status:'active',image_url:''})}>+ Add purifier</button>
+            </div>
           )}
 
           <div className="section-title">Service timeline ({profile.svcs.length})</div>
@@ -480,6 +550,53 @@ export default function Customers() {
             })}
           </div>
           <ModalFooter><button className="btn" onClick={()=>setProfile(null)}>Close</button></ModalFooter>
+        </Modal>
+      )}
+
+      {/* Purifier add/edit modal */}
+      {purifierModal&&(
+        <Modal title={purifierModal.id?'Edit Purifier':'Add Purifier'} onClose={()=>setPurifierModal(null)} size="md">
+          <div className="space-y-3">
+            <div>
+              <label className="label">Model</label>
+              <input type="text" className="input" placeholder="e.g., RO Model-2024" value={purifierModal.model} onChange={e=>setPurifierModal(m=>({...m,model:e.target.value}))}/>
+            </div>
+            <div>
+              <label className="label">Serial number</label>
+              <input type="text" className="input" placeholder="e.g., SN-12345" value={purifierModal.serial_no} onChange={e=>setPurifierModal(m=>({...m,serial_no:e.target.value}))}/>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Installed date</label>
+                <input type="date" className="input" value={purifierModal.installed_date} onChange={e=>setPurifierModal(m=>({...m,installed_date:e.target.value}))}/>
+              </div>
+              <div>
+                <label className="label">Service interval (days)</label>
+                <input type="number" className="input" placeholder="90" value={purifierModal.interval_days} onChange={e=>setPurifierModal(m=>({...m,interval_days:parseInt(e.target.value)}))}/>
+              </div>
+            </div>
+            <div>
+              <label className="label">Total services</label>
+              <input type="number" className="input" placeholder="4" value={purifierModal.total_services} onChange={e=>setPurifierModal(m=>({...m,total_services:parseInt(e.target.value)}))}/>
+            </div>
+            <div>
+              <label className="label">Status</label>
+              <select className="input" value={purifierModal.status} onChange={e=>setPurifierModal(m=>({...m,status:e.target.value}))}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="servicing">Servicing</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Image URL (optional)</label>
+              <input type="url" className="input" placeholder="https://..." value={purifierModal.image_url||''} onChange={e=>setPurifierModal(m=>({...m,image_url:e.target.value}))}/>
+            </div>
+          </div>
+          <ModalFooter>
+            <button className="btn" onClick={()=>setPurifierModal(null)}>Cancel</button>
+            { purifierModal.id&&<button className="btn btn-danger" onClick={()=>deletePurifier(purifierModal.id)}>Delete</button>}
+            <button className="btn-primary rounded-lg px-4 py-1.5 text-sm" onClick={savePurifier}>Save</button>
+          </ModalFooter>
         </Modal>
       )}
     </div>

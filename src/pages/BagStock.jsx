@@ -74,6 +74,18 @@ export default function BagStock() {
     setUseModal(null); setUseQty(1); setUseNote(''); loadBag()
   }
 
+  async function returnToInventory(bag) {
+    if (bag.remaining_qty <= 0) { alert('Nothing to return'); return }
+    const stk = stock.find(s=>s.id===bag.stock_id)
+    if (!stk) return
+    const updatedQty = stk.qty + bag.remaining_qty
+    await supabase.from('stock').update({ qty: updatedQty, last_updated_by: user.name, last_updated_at: new Date().toISOString() }).eq('id', bag.stock_id)
+    await supabase.from('bag_stock').update({ remaining_qty: 0 }).eq('id', bag.id)
+    await supabase.from('stock_movements').insert({ stock_id: bag.stock_id, stock_name: bag.stock_name, business: bag.business, type:'receive', qty_change: bag.remaining_qty, qty_before: stk.qty, qty_after: updatedQty, by_name: user.name, by_role: user.role, note: `Returned from ${bag.technician_name}'s bag` })
+    await logAction(user, 'bagstock', `Returned ${bag.remaining_qty}x ${bag.stock_name} to inventory from ${bag.technician_name}`)
+    loadBag(); loadAll()
+  }
+
   const displayed = bags.filter(b => tab==='current' ? b.remaining_qty > 0 : b.remaining_qty === 0)
 
   return (
@@ -140,9 +152,14 @@ export default function BagStock() {
                 <td className="td text-gray-400">{fmt12(b.dispatched_at)}</td>
                 {(isAdmin||isMgr||isTech) && (
                   <td className="td">
-                    {b.remaining_qty > 0 && (
-                      <button className="btn btn-sm" onClick={()=>setUseModal(b)}>Use</button>
-                    )}
+                    <div className="flex gap-1">
+                      {b.remaining_qty > 0 && (
+                        <>
+                          <button className="btn btn-sm" onClick={()=>setUseModal(b)}>Use</button>
+                          {(isAdmin||isMgr) && <button className="btn btn-sm text-amber-600 border-amber-200" onClick={()=>returnToInventory(b)}>Return</button>}
+                        </>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>

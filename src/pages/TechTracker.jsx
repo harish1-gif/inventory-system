@@ -25,7 +25,8 @@ export default function TechTracker() {
   const [extraHours, setExtraHours]   = useState(1)
   const [approveNote, setApproveNote] = useState('')
   const isTech = user.role === 'technician'
-  const isMgr  = user.role === 'manager'
+  const isMgr  = user.role === 'manager' || user.role === 'admin'
+  const canControl = isTech || isMgr
 
   useEffect(() => {
     loadAll()
@@ -123,13 +124,13 @@ export default function TechTracker() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="page-title mb-0">Tech Tracker</h1>
-        {extraReqs.length > 0 && !isTech && (
+        {extraReqs.length > 0 && isMgr && (
           <span className="badge badge-purple">{extraReqs.length} extra hour request{extraReqs.length>1?'s':''} pending</span>
         )}
       </div>
 
-      {/* Manager: pending extra hour requests */}
-      {!isTech && extraReqs.length > 0 && (
+      {/* Manager/Admin: pending extra hour requests */}
+      {isMgr && extraReqs.length > 0 && (
         <div className="card border-purple-200 mb-4">
           <div className="section-title text-purple-700">Extra hour requests — action required</div>
           {extraReqs.map(r=>(
@@ -155,15 +156,16 @@ export default function TechTracker() {
           const allowedMins = (job.working_hours_allowed + (job.extra_hours_approved||0)) * 60
           const pct = allowedMins > 0 ? Math.min(100, Math.round(mins/allowedMins*100)) : 0
           const barCol = pct>=100?'#EF4444':pct>=80?'#F59E0B':'#185FA5'
-          const canAct = job.assigned_to === user.id || !isTech
+          const canAct = job.assigned_to === user.id || isMgr
 
           return (
             <div key={job.id} className="card">
               <div className="flex items-start justify-between mb-3">
-                <div>
+              <div>
                   <div className="font-medium">{job.customer_name}</div>
-                  <div className="text-xs text-gray-500">{job.customer_location} · {job.service_type}</div>
-                  {job.zones && <div className="flex items-center gap-1 mt-0.5"><span className="w-2 h-2 rounded-full" style={{background:job.zones.color}}/><span className="text-xs text-gray-500">{job.zones.name}</span></div>}
+                  <div className="text-xs text-gray-500">{job.customer_location}</div>
+                  {isMgr && job.service_type && <div className="text-xs bg-blue-50 text-blue-700 mt-1 px-2 py-0.5 rounded w-fit">📋 {job.service_type}</div>}
+                  <div className="flex items-center gap-1 mt-0.5">{job.zones && <><span className="w-2 h-2 rounded-full" style={{background:job.zones.color}}/><span className="text-xs text-gray-500">{job.zones.name}</span></>}</div>
                 </div>
                 <div className="text-right">
                   <span className={`font-medium text-sm ${statusColor[job.status]||'text-gray-600'}`}>{job.status}</span>
@@ -190,18 +192,18 @@ export default function TechTracker() {
               {/* Action buttons */}
               {canAct && (
                 <div className="flex gap-2 flex-wrap">
-                  {job.status==='pending' && isTech && job.assigned_to===user.id && (
+                  {job.status==='pending' && ((isTech && job.assigned_to===user.id) || isMgr) && (
                     <button className="btn-primary btn-sm rounded-lg" onClick={()=>acceptJob(job)}>Accept job</button>
                   )}
                   {job.status==='active' && (
                     <>
-                      {!job.travel_start_time && isTech && job.assigned_to===user.id && (
+                      {!job.travel_start_time && ((isTech && job.assigned_to===user.id) || isMgr) && (
                         <button className="btn btn-sm" onClick={()=>startTravel(job)}>Start travel</button>
                       )}
-                      {job.travel_start_time && !job.travel_end_time && isTech && job.assigned_to===user.id && (
+                      {job.travel_start_time && !job.travel_end_time && ((isTech && job.assigned_to===user.id) || isMgr) && (
                         <button className="btn btn-sm bg-green-50 text-green-700 border-green-200" onClick={()=>arriveAtSite(job)}>Arrived at site</button>
                       )}
-                      {isTech && job.assigned_to===user.id && (
+                      {((isTech && job.assigned_to===user.id) || isMgr) && (
                         <>
                           <button className="btn-primary btn-sm rounded-lg bg-green-600 border-green-600 hover:bg-green-700"
                             onClick={()=>completeJob(job)}>Mark complete</button>
@@ -213,7 +215,7 @@ export default function TechTracker() {
                       )}
                     </>
                   )}
-                  {job.status==='extra_hrs_requested' && !isTech && (
+                  {job.status==='extra_hrs_requested' && isMgr && (
                     <button className="btn btn-sm bg-purple-50 text-purple-700 border-purple-200"
                       onClick={()=>setApprove(extraReqs.find(r=>r.job_id===job.id)||{job_id:job.id,technician_name:job.assigned_to_name,reason:'',requested_at:new Date().toISOString()})}>
                       Review extra hours
