@@ -15,7 +15,7 @@ import Customers  from './pages/Customers'
 import OnlineOrders from './pages/OnlineOrders'
 import Updates    from './pages/Updates'
 import Users      from './pages/Users'
-import Settings   from './pages/Settings'
+import JobHistory from './pages/JobHistory'
 
 function Protected({ children, roles }) {
   const { user } = useAuth()
@@ -42,7 +42,7 @@ function AppRoutes() {
         <Route path="online"     element={<OnlineOrders />} />
         <Route path="updates"    element={<Protected roles={['admin','manager']}><Updates /></Protected>} />
         <Route path="users"      element={<Protected roles={['admin','manager']}><Users /></Protected>} />
-        <Route path="settings"   element={<Protected roles={['admin']}><Settings /></Protected>} />
+        <Route path="jobhistory" element={<Protected roles={['admin','manager']}><JobHistory /></Protected>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

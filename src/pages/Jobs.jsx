@@ -12,8 +12,9 @@ export default function Jobs() {
   const [customers, setCustomers] = useState([])
   const [zoneTechs, setZT] = useState([])
   const [modal, setModal]  = useState(false)
-  const [filter, setFilter]= useState('all')
+  const [activeTab, setActiveTab] = useState('active')
   const [detailModal, setDetail] = useState(null)
+  const [search, setSearch] = useState('')
   const isTech = user.role === 'technician'
   const canCreate = !isTech
 
@@ -32,7 +33,7 @@ export default function Jobs() {
       jQ,
       supabase.from('zones').select('*').order('km_from_kpm'),
       supabase.from('app_users').select('id,name').eq('role','technician').eq('status','active'),
-      supabase.from('customers').select('id,name,address,area').order('name'),
+      supabase.from('customers').select('id,name,mobile,address,area').order('name'),
       supabase.from('zone_technicians').select('*'),
     ])
     setJobs(j.data||[])
@@ -70,7 +71,28 @@ export default function Jobs() {
     setModal(false); setForm(blank); loadAll()
   }
 
-  const filtered = jobs.filter(j => filter==='all' ? true : j.status===filter)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const filtered = activeTab === 'active'
+    ? jobs.filter(j => 
+        j.status === 'pending' || 
+        j.status === 'active' || 
+        (j.status === 'completed' && j.end_time && new Date(j.end_time) >= sevenDaysAgo)
+      ).filter(j => 
+        !search || 
+        j.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+        j.customer_location?.toLowerCase().includes(search.toLowerCase()) ||
+        j.assigned_to_name?.toLowerCase().includes(search.toLowerCase()) ||
+        customers.find(c=>c.name===j.customer_name)?.mobile?.toLowerCase().includes(search.toLowerCase())
+      )
+    : jobs.filter(j => 
+        j.status === 'completed' && j.end_time && new Date(j.end_time) >= sevenDaysAgo
+      ).filter(j => 
+        !search || 
+        j.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+        j.customer_location?.toLowerCase().includes(search.toLowerCase()) ||
+        j.assigned_to_name?.toLowerCase().includes(search.toLowerCase()) ||
+        customers.find(c=>c.name===j.customer_name)?.mobile?.toLowerCase().includes(search.toLowerCase())
+      )
   const statusColor = { pending:'badge-warn', active:'badge-blue', extra_hrs_requested:'badge-purple',
     completed:'badge-ok', flagged:'badge-danger' }
 
@@ -79,13 +101,22 @@ export default function Jobs() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="page-title mb-0">Jobs</h1>
         <div className="flex gap-2 items-center">
+          <input 
+            type="text" 
+            placeholder="Search jobs..." 
+            value={search} 
+            onChange={e=>setSearch(e.target.value)} 
+            className="input w-64" 
+          />
           <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1 text-xs">
-            {['all','pending','active','completed','flagged'].map(s=>(
-              <button key={s} onClick={()=>setFilter(s)}
-                className={`px-2 py-1 rounded transition-colors ${filter===s?'bg-brand text-white':'text-gray-500 hover:bg-gray-50'}`}>
-                {s.charAt(0).toUpperCase()+s.slice(1)}
-              </button>
-            ))}
+            <button onClick={()=>setActiveTab('active')}
+              className={`px-3 py-1.5 rounded transition-colors ${activeTab==='active'?'bg-brand text-white':'text-gray-500 hover:bg-gray-50'}`}>
+              Active Jobs
+            </button>
+            <button onClick={()=>setActiveTab('completed')}
+              className={`px-3 py-1.5 rounded transition-colors ${activeTab==='completed'?'bg-brand text-white':'text-gray-500 hover:bg-gray-50'}`}>
+              Completed Jobs
+            </button>
           </div>
           {canCreate && <button className="btn-primary btn-sm rounded-lg" onClick={()=>setModal(true)}>+ New job</button>}
         </div>
@@ -94,7 +125,7 @@ export default function Jobs() {
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <table className="w-full text-xs">
           <thead><tr>
-            <th className="th">Customer</th><th className="th">Zone</th><th className="th">Technician</th>
+            <th className="th">Customer</th><th className="th">Mobile</th><th className="th">Zone</th><th className="th">Technician</th>
             <th className="th">Service type</th><th className="th">Hours</th>
             <th className="th">Status</th><th className="th">Created</th><th className="th"></th>
           </tr></thead>
@@ -105,6 +136,7 @@ export default function Jobs() {
                   <div className="font-medium">{j.customer_name}</div>
                   <div className="text-gray-400">{j.customer_location}</div>
                 </td>
+                <td className="td text-gray-600">{customers.find(c=>c.name===j.customer_name)?.mobile || '—'}</td>
                 <td className="td">
                   {j.zones && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{background:j.zones.color}}/>{j.zones.name}</span>}
                 </td>
@@ -195,6 +227,7 @@ export default function Jobs() {
           <div className="space-y-2 text-xs">
             <div className="grid grid-cols-2 gap-2 bg-gray-50 rounded-lg p-3">
               <div><span className="text-gray-400">Customer:</span> <strong>{detailModal.customer_name}</strong></div>
+              <div><span className="text-gray-400">Mobile:</span> {customers.find(c=>c.name===detailModal.customer_name)?.mobile || '—'}</div>
               <div><span className="text-gray-400">Location:</span> {detailModal.customer_location||'—'}</div>
               <div><span className="text-gray-400">Service:</span> <span className="badge badge-gray">{detailModal.service_type}</span></div>
               <div><span className="text-gray-400">Technician:</span> <strong>{detailModal.assigned_to_name||'—'}</strong></div>

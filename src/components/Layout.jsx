@@ -16,7 +16,7 @@ const NAV = [
   { to:'/customers',   label:'Customers',    icon:'👥', roles:['admin','manager','technician'] },
   { to:'/online',      label:'Online Orders',icon:'🛒', roles:['admin','manager','technician'] },
   { to:'/updates',     label:'Updates',      icon:'◑', roles:['admin','manager'] },
-  { to:'/users',       label:'Users',        icon:'⊞', roles:['admin','manager'] },
+  { to:'/jobhistory', label:'Job History',  icon:'📋', roles:['admin','manager'] },
   { to:'/settings',    label:'Settings',     icon:'⚙', roles:['admin'] },
 ]
 

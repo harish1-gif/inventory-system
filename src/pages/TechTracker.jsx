@@ -18,9 +18,11 @@ export default function TechTracker() {
   const { user }           = useAuth()
   const [jobs, setJobs]    = useState([])
   const [extraReqs, setEx] = useState([])
+  const [customers, setCustomers] = useState([])
   const [tick, setTick]    = useState(0)
   const [extraModal, setExtraModal]   = useState(null) // tech: request
   const [approveModal, setApprove]    = useState(null) // manager: approve/reject
+  const [detailJob, setDetailJob]     = useState(null)
   const [extraReason, setExtraReason] = useState('')
   const [extraHours, setExtraHours]   = useState(1)
   const [approveNote, setApproveNote] = useState('')
@@ -38,12 +40,14 @@ export default function TechTracker() {
     const jQ = isTech
       ? supabase.from('jobs').select('*,zones(name,color)').eq('assigned_to', user.id).neq('status','completed').order('created_at',{ascending:false})
       : supabase.from('jobs').select('*,zones(name,color),app_users!assigned_to(name)').in('status',['pending','active','extra_hrs_requested','flagged']).order('created_at',{ascending:false})
-    const [j, ex] = await Promise.all([
+    const [j, ex, c] = await Promise.all([
       jQ,
       supabase.from('extra_hours_requests').select('*').eq('status','pending'),
+      supabase.from('customers').select('id,name,mobile,address,area'),
     ])
     setJobs(j.data||[])
     setEx(ex.data||[])
+    setCustomers(c.data||[])
   }
 
   async function acceptJob(job) {
@@ -165,6 +169,8 @@ export default function TechTracker() {
                   <div className="font-medium">{job.customer_name}</div>
                   <div className="text-xs text-gray-500">{job.customer_location}</div>
                   {isMgr && job.service_type && <div className="text-xs bg-blue-50 text-blue-700 mt-1 px-2 py-0.5 rounded w-fit">📋 {job.service_type}</div>}
+                  <div className="text-xs text-gray-500 mt-1">Technician: <strong>{job.assigned_to_name||'Unassigned'}</strong></div>
+                  <div className="text-xs text-gray-500">Mobile: <strong>{customers.find(c=>c.name===job.customer_name)?.mobile||'—'}</strong></div>
                   <div className="flex items-center gap-1 mt-0.5">{job.zones && <><span className="w-2 h-2 rounded-full" style={{background:job.zones.color}}/><span className="text-xs text-gray-500">{job.zones.name}</span></>}</div>
                 </div>
                 <div className="text-right">

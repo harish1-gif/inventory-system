@@ -11,6 +11,7 @@ export default function BagStock() {
   const [techs, setTechs]   = useState([])
   const [selTech, setSelTech] = useState(user.role==='technician' ? user.id : '')
   const [tab, setTab]       = useState('current')
+  const [selectedMonth, setSelectedMonth] = useState('')
   const [dispatchModal, setDispatch] = useState(false)
   const [useModal, setUseModal]      = useState(null)
   const [dForm, setDForm]   = useState({ technician_id:'', stock_id:'', qty:1 })
@@ -86,7 +87,37 @@ export default function BagStock() {
     loadBag(); loadAll()
   }
 
-  const displayed = bags.filter(b => tab==='current' ? b.remaining_qty > 0 : b.remaining_qty === 0)
+  const displayed = bags.filter(b => {
+    if (tab === 'current') return b.remaining_qty > 0
+    if (tab === 'used') return b.remaining_qty === 0
+    if (tab === 'history') {
+      // For history tab, show items that reached qty 0, filtered by month if selected
+      if (b.remaining_qty !== 0) return false
+      if (!selectedMonth) return true
+      // Check if the item was used up in the selected month
+      // We need to find when it reached 0 - this would be from bag_stock_log
+      // For now, we'll use the last_used_at or dispatched_at as approximation
+      const usedDate = b.last_used_at ? new Date(b.last_used_at) : new Date(b.dispatched_at)
+      const usedMonth = `${usedDate.getFullYear()}-${String(usedDate.getMonth() + 1).padStart(2, '0')}`
+      return usedMonth === selectedMonth
+    }
+    return false
+  })
+
+  // Generate month options for history tab
+  const monthOptions = tab === 'history' ? Array.from(new Set(
+    bags.filter(b => b.remaining_qty === 0).map(b => {
+      const usedDate = b.last_used_at ? new Date(b.last_used_at) : new Date(b.dispatched_at)
+      return `${usedDate.getFullYear()}-${String(usedDate.getMonth() + 1).padStart(2, '0')}`
+    })
+  )).sort().reverse().map(month => {
+    const [year, monthNum] = month.split('-')
+    const date = new Date(year, monthNum - 1)
+    return {
+      value: month,
+      label: date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+    }
+  }) : []
 
   return (
     <div>
@@ -98,7 +129,7 @@ export default function BagStock() {
               {techs.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           )}
-          {isAdmin && (
+          {(isAdmin || isMgr) && (
             <button className="btn-primary btn-sm rounded-lg" onClick={()=>setDispatch(true)}>+ Dispatch stock</button>
           )}
         </div>
@@ -106,71 +137,124 @@ export default function BagStock() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-gray-100">
-        {[['current','Current stock'],['used','Used up']].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)}
+        {[['current','Current stock'],['used','Used up'],['history','History']].map(([k,l])=>(
+          <button key={k} onClick={()=>{setTab(k); if(k!=='history') setSelectedMonth('')}} 
             className={`tab-btn ${tab===k?'tab-active':'tab-inactive'}`}>{l}</button>
         ))}
       </div>
 
+      {/* Month filter for history tab */}
+      {tab === 'history' && (
+        <div className="mb-4">
+          <select 
+            className="input w-40 text-xs" 
+            value={selectedMonth} 
+            onChange={e=>setSelectedMonth(e.target.value)}
+          >
+            <option value="">All months</option>
+            {monthOptions.map(month => (
+              <option key={month.value} value={month.value}>{month.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3 mb-4">
-        {[
-          { l:'Total items', v:bags.filter(b=>b.remaining_qty>0).length, c:'text-amber-700', bg:'bg-amber-50' },
-          { l:'Total units', v:bags.filter(b=>b.remaining_qty>0).reduce((a,b)=>a+b.remaining_qty,0), c:'text-gray-800', bg:'bg-gray-50' },
-          { l:'Used up', v:bags.filter(b=>b.remaining_qty===0).length, c:'text-green-700', bg:'bg-green-50' },
-        ].map(m=>(
-          <div key={m.l} className={`${m.bg} rounded-xl p-3`}>
-            <div className="text-xs text-gray-500 mb-1">{m.l}</div>
-            <div className={`text-xl font-medium ${m.c}`}>{m.v}</div>
-          </div>
-        ))}
+        {tab === 'history' ? (
+          [
+            { l:'Items used up', v:displayed.length, c:'text-blue-700', bg:'bg-blue-50' },
+            { l:'Total used', v:displayed.reduce((a,b)=>a+b.qty_dispatched,0), c:'text-gray-800', bg:'bg-gray-50' },
+            { l:'This month', v:selectedMonth ? displayed.length : '—', c:'text-green-700', bg:'bg-green-50' },
+          ].map(m=>(
+            <div key={m.l} className={`${m.bg} rounded-xl p-3`}>
+              <div className="text-xs text-gray-500 mb-1">{m.l}</div>
+              <div className={`text-xl font-medium ${m.c}`}>{m.v}</div>
+            </div>
+          ))
+        ) : (
+          [
+            { l:'Total items', v:bags.filter(b=>b.remaining_qty>0).length, c:'text-amber-700', bg:'bg-amber-50' },
+            { l:'Total units', v:bags.filter(b=>b.remaining_qty>0).reduce((a,b)=>a+b.remaining_qty,0), c:'text-gray-800', bg:'bg-gray-50' },
+            { l:'Used up', v:bags.filter(b=>b.remaining_qty===0).length, c:'text-green-700', bg:'bg-green-50' },
+          ].map(m=>(
+            <div key={m.l} className={`${m.bg} rounded-xl p-3`}>
+              <div className="text-xs text-gray-500 mb-1">{m.l}</div>
+              <div className={`text-xl font-medium ${m.c}`}>{m.v}</div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Bag table */}
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <table className="w-full text-xs">
           <thead><tr>
-            <th className="th">Item</th><th className="th">Category</th><th className="th">Business</th>
-            <th className="th">Dispatched</th><th className="th">Remaining</th>
-            <th className="th">Dispatched by</th><th className="th">Date</th>
-            {(isAdmin||isMgr||isTech) && <th className="th">Action</th>}
+            {tab === 'history' ? (
+              <>
+                <th className="th">Item</th><th className="th">Category</th><th className="th">Business</th>
+                <th className="th">Quantity Used</th><th className="th">Used Up Date</th>
+              </>
+            ) : (
+              <>
+                <th className="th">Item</th><th className="th">Category</th><th className="th">Business</th>
+                <th className="th">Dispatched</th><th className="th">Remaining</th>
+                <th className="th">Dispatched by</th><th className="th">Date</th>
+                {(isAdmin||isMgr||isTech) && <th className="th">Action</th>}
+              </>
+            )}
           </tr></thead>
           <tbody>
             {displayed.map(b=>(
               <tr key={b.id} className="hover:bg-gray-50">
-                <td className="td font-medium">{b.stock_name}</td>
-                <td className="td text-gray-500">{b.category}</td>
-                <td className="td"><span className={`badge ${b.business==='b2c'?'badge-b2c':'badge-b2b'}`}>{b.business?.toUpperCase()}</span></td>
-                <td className="td text-center">{b.qty_dispatched}</td>
-                <td className="td">
-                  <span className={`font-medium ${b.remaining_qty===0?'text-gray-400':b.remaining_qty<=2?'text-amber-600':'text-green-700'}`}>
-                    {b.remaining_qty}
-                  </span>
-                  {b.remaining_qty===0 && <span className="badge badge-gray ml-1">Used up</span>}
-                </td>
-                <td className="td text-gray-500">{b.dispatched_by}</td>
-                <td className="td text-gray-400">{fmt12(b.dispatched_at)}</td>
-                {(isAdmin||isMgr||isTech) && (
-                  <td className="td">
-                    <div className="flex gap-1">
-                      {b.remaining_qty > 0 && (
-                        <>
-                          <button className="btn btn-sm" onClick={()=>setUseModal(b)}>Use</button>
-                          {(isAdmin||isMgr) && <button className="btn btn-sm text-amber-600 border-amber-200" onClick={()=>returnToInventory(b)}>Return</button>}
-                        </>
-                      )}
-                    </div>
-                  </td>
+                {tab === 'history' ? (
+                  <>
+                    <td className="td font-medium">{b.stock_name}</td>
+                    <td className="td text-gray-500">{b.category}</td>
+                    <td className="td"><span className={`badge ${b.business==='b2c'?'badge-b2c':'badge-b2b'}`}>{b.business?.toUpperCase()}</span></td>
+                    <td className="td text-center">{b.qty_dispatched}</td>
+                    <td className="td text-gray-400">{fmt12(b.last_used_at || b.dispatched_at)}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="td font-medium">{b.stock_name}</td>
+                    <td className="td text-gray-500">{b.category}</td>
+                    <td className="td"><span className={`badge ${b.business==='b2c'?'badge-b2c':'badge-b2b'}`}>{b.business?.toUpperCase()}</span></td>
+                    <td className="td text-center">{b.qty_dispatched}</td>
+                    <td className="td">
+                      <span className={`font-medium ${b.remaining_qty===0?'text-gray-400':b.remaining_qty<=2?'text-amber-600':'text-green-700'}`}>
+                        {b.remaining_qty}
+                      </span>
+                      {b.remaining_qty===0 && <span className="badge badge-gray ml-1">Used up</span>}
+                    </td>
+                    <td className="td text-gray-500">{b.dispatched_by}</td>
+                    <td className="td text-gray-400">{fmt12(b.dispatched_at)}</td>
+                    {(isAdmin||isMgr||isTech) && (
+                      <td className="td">
+                        <div className="flex gap-1">
+                          {b.remaining_qty > 0 && (
+                            <>
+                              <button className="btn btn-sm" onClick={()=>setUseModal(b)}>Use</button>
+                              {(isAdmin||isMgr) && <button className="btn btn-sm text-amber-600 border-amber-200" onClick={()=>returnToInventory(b)}>Return</button>}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </>
                 )}
               </tr>
             ))}
           </tbody>
         </table>
-        {displayed.length===0 && <p className="text-xs text-gray-400 text-center py-8">{tab==='current'?'No items in bag':'No used-up items'}</p>}
+        {displayed.length===0 && <p className="text-xs text-gray-400 text-center py-8">
+          {tab==='current'?'No items in bag':tab==='used'?'No used-up items':'No historical data'}
+          {tab==='history' && selectedMonth ? ' for selected month' : ''}
+        </p>}
       </div>
 
       {/* Dispatch modal — admin only */}
-      {dispatchModal && isAdmin && (
+      {dispatchModal && (isAdmin || isMgr) && (
         <Modal title="Dispatch stock to technician" onClose={()=>setDispatch(false)}>
           <div className="space-y-3">
             <div>
