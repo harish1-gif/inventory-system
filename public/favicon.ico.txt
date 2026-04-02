@@ -1,0 +1,3 @@
+# Placeholder for favicon.ico
+# You need to add a proper favicon.ico file here
+# You can generate one at https://favicon.io/favicon-generator/

@@ -18,6 +18,7 @@ export default function Customers() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('b2c')
   const [customers, setCustomers] = useState([])
+  const [purifierModels, setPurifierModels] = useState([])
   const [search, setSearch]       = useState('')
   const [filterStatus, setFilter] = useState('all')
   const [filterSource, setFilterSource] = useState('all')
@@ -34,12 +35,58 @@ export default function Customers() {
   useEffect(() => { load() }, [activeTab])
 
   async function load() {
-    const { data } = await supabase
-      .from('customers')
-      .select('*, purifiers(id,model,status), service_calls(id,pending_amount,call_datetime,total_amount,status)')
-      .eq('business_type', activeTab)
-      .order('name')
-    setCustomers(data||[])
+    const { data: modelsData } = await supabase.from('purifier_models').select('*')
+    setPurifierModels(modelsData || [])
+
+    // Fetch all customers with pagination since Supabase limits to 1000 per query
+    let allCustomers = []
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data: customersData } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('business_type', activeTab)
+        .order('name')
+        .range(from, from + pageSize - 1)
+      if (!customersData || customersData.length === 0) break
+      allCustomers = allCustomers.concat(customersData)
+      from += pageSize
+      if (customersData.length < pageSize) break // Last page
+    }
+
+    const customers = allCustomers
+    customers.forEach(c => {
+      const model = modelsData.find(m => m.id === c.purifier_model_id)
+      c.purifier_model_name = model ? model.name : 'Unknown'
+    })
+    const customerIds = customers.map(c => c.id)
+    if (customerIds.length > 0) {
+      const [purifiersResponse, serviceCallsResponse] = await Promise.all([
+        supabase.from('purifiers').select('id,customer_id,model,serial_no,installed_date,interval_days,total_services,status,image_url'),
+        supabase.from('service_calls').select('id,customer_id,pending_amount,call_datetime,total_amount,status')
+      ])
+      const purifiersData = purifiersResponse.data || []
+      const serviceCallsData = serviceCallsResponse.data || []
+      const purifiersMap = {}
+      purifiersData.filter(p => customerIds.includes(p.customer_id)).forEach(p => {
+        if (!purifiersMap[p.customer_id]) purifiersMap[p.customer_id] = []
+        const idToMatch = p.model
+        const model = modelsData.find(m => m.id === idToMatch)
+        p.model_name = model ? model.name : (p.model || 'Unknown')
+        purifiersMap[p.customer_id].push(p)
+      })
+      const serviceCallsMap = {}
+      serviceCallsData.filter(s => customerIds.includes(s.customer_id)).forEach(s => {
+        if (!serviceCallsMap[s.customer_id]) serviceCallsMap[s.customer_id] = []
+        serviceCallsMap[s.customer_id].push(s)
+      })
+      customers.forEach(c => {
+        c.purifiers = purifiersMap[c.id] || []
+        c.service_calls = serviceCallsMap[c.id] || []
+      })
+    }
+    setCustomers(customers)
   }
 
   async function openProfile(cid) {
@@ -48,7 +95,13 @@ export default function Customers() {
       supabase.from('service_calls').select('*, app_users(name)').eq('customer_id',cid).order('call_datetime',{ascending:false}),
       supabase.from('purifiers').select('*').eq('customer_id',cid),
     ])
-    setProfile({ cust: cr.data, svcs: sr.data||[], purifs: pr.data||[] })
+    const purifs = pr.data || []
+    purifs.forEach(p => {
+      const idToMatch = p.model
+      const model = purifierModels.find(m => m.id === idToMatch)
+      p.model_name = model ? model.name : (p.model || 'Unknown')
+    })
+    setProfile({ cust: cr.data, svcs: sr.data||[], purifs })
   }
 
   async function addCustomer() {
@@ -130,13 +183,13 @@ export default function Customers() {
   // Purifier management
   async function savePurifier() {
     if (!purifierModal || !profile) return
-    if (!purifierModal.model || !purifierModal.serial_no) {
+    if (!purifierModal.purifier_model_id || !purifierModal.serial_no) {
       alert('Model and serial number required'); return
     }
     if (purifierModal.id) {
       // Update existing
       await supabase.from('purifiers').update({
-        model: purifierModal.model,
+        model: purifierModal.purifier_model_id,
         serial_no: purifierModal.serial_no,
         installed_date: purifierModal.installed_date,
         interval_days: purifierModal.interval_days,
@@ -153,7 +206,7 @@ export default function Customers() {
       const uid = user.id || 'anon'
       const { error } = await supabase.from('purifiers').insert({
         customer_id: profile.cust.id,
-        model: purifierModal.model,
+        model: purifierModal.purifier_model_id,
         serial_no: purifierModal.serial_no,
         installed_date: purifierModal.installed_date,
         interval_days: purifierModal.interval_days,
@@ -266,7 +319,7 @@ export default function Customers() {
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <table className="w-full text-xs">
           <thead><tr>
-            <th className="th">Name</th><th className="th">Mobile</th><th className="th">Area</th><th className="th">Source</th>
+            <th className="th">Name</th><th className="th">Mobile</th><th className="th">Area</th><th className="th">Address</th><th className="th">Source</th>
             <th className="th">Purifiers</th><th className="th">Last service</th>
             <th className="th">Pending ₹</th><th className="th">Status</th><th className="th"></th>
           </tr></thead>
@@ -283,8 +336,9 @@ export default function Customers() {
                   </td>
                   <td className="td">{c.mobile}</td>
                   <td className="td">{c.area}</td>
+                  <td className="td">{c.address}</td>
                   <td className="td"><span className={`badge ${SOURCE_COLORS[c.source]||'badge-gray'}`}>{SOURCE_LABELS[c.source]||'Unknown'}</span></td>
-                  <td className="td">{(c.purifiers||[]).map(p=><span key={p.id} className="badge badge-blue mr-1">{p.model}</span>)}</td>
+                  <td className="td">{c.purifier_model_name ? <span className="badge badge-blue">{c.purifier_model_name}</span> : '—'}</td>
                   <td className="td text-gray-400" style={{fontSize:'11px'}}>{lastSvc}</td>
                   <td className="td">
                     {pend>0?<span className="font-medium text-red-500">{fmtM(pend)}</span>:<span className="badge badge-ok">Clear</span>}
@@ -489,16 +543,16 @@ export default function Customers() {
             <>
               <div className="flex items-center justify-between mb-2">
                 <div className="section-title mb-0">Purifiers ({profile.purifs.length})</div>
-                {canEdit && <button className="btn btn-sm text-xs" onClick={()=>setPurifierModal({model:'',serial_no:'',installed_date:new Date().toISOString().split('T')[0],interval_days:90,total_services:4,status:'active',image_url:''})}>+ Add purifier</button>}
+                {canEdit && <button className="btn btn-sm text-xs" onClick={()=>setPurifierModal({purifier_model_id:'',model:'',serial_no:'',installed_date:new Date().toISOString().split('T')[0],interval_days:90,total_services:4,status:'active',image_url:''})}>+ Add purifier</button>}
               </div>
               {profile.purifs.map(p=>{
                 const nd=new Date(p.last_service_date);nd.setDate(nd.getDate()+p.interval_days)
                 const left=p.total_services-p.done_count
                 return(
                   <div key={p.id} className="bg-gray-50 rounded-lg p-3 mb-2 cursor-pointer hover:bg-gray-100 transition"
-                    onClick={canEdit?()=>setPurifierModal({id:p.id,model:p.model,serial_no:p.serial_no,installed_date:p.installed_date,interval_days:p.interval_days,total_services:p.total_services,status:p.status,image_url:p.image_url}):undefined}>
-                    <div className="text-xs font-medium">{p.model} <span className="text-gray-400 font-normal">#{p.serial_no}</span></div>
-                    {p.image_url&&<img src={p.image_url} alt={p.model} className="w-full h-24 object-cover rounded mb-2"/>}
+                    onClick={canEdit?()=>setPurifierModal({id:p.id,purifier_model_id:p.model,model:p.model_name,serial_no:p.serial_no,installed_date:p.installed_date,interval_days:p.interval_days,total_services:p.total_services,status:p.status,image_url:p.image_url}):undefined}>
+                    <div className="text-xs font-medium">{p.model_name} <span className="text-gray-400 font-normal">#{p.serial_no}</span></div>
+                    {p.image_url&&<img src={p.image_url} alt={p.model_name} className="w-full h-24 object-cover rounded mb-2"/>}
                     <div className="text-xs text-gray-500 mb-1">Installed: {p.installed_date} · Next due: {fmtD(nd)}</div>
                     <div className="text-xs mb-2">{p.done_count} done · <span className="text-blue-600 font-medium">{left} left</span></div>
                     <div className="flex gap-1">
@@ -514,7 +568,7 @@ export default function Customers() {
           {profile.purifs.length===0&&canEdit&&(
             <div className="flex items-center justify-between mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
               <span className="text-xs text-blue-700">No purifiers added yet</span>
-              <button className="btn btn-sm text-xs" onClick={()=>setPurifierModal({model:'',serial_no:'',installed_date:new Date().toISOString().split('T')[0],interval_days:90,total_services:4,status:'active',image_url:''})}>+ Add purifier</button>
+              <button className="btn btn-sm text-xs" onClick={()=>setPurifierModal({purifier_model_id:'',model:'',serial_no:'',installed_date:new Date().toISOString().split('T')[0],interval_days:90,total_services:4,status:'active',image_url:''})}>+ Add purifier</button>
             </div>
           )}
 
@@ -559,7 +613,10 @@ export default function Customers() {
           <div className="space-y-3">
             <div>
               <label className="label">Model</label>
-              <input type="text" className="input" placeholder="e.g., RO Model-2024" value={purifierModal.model} onChange={e=>setPurifierModal(m=>({...m,model:e.target.value}))}/>
+              <select className="input" value={purifierModal.purifier_model_id} onChange={e=>setPurifierModal(m=>({...m,purifier_model_id:e.target.value}))}>
+                <option value="">Select Model</option>
+                {purifierModels.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="label">Serial number</label>

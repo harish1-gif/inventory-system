@@ -43,6 +43,15 @@ export default function Jobs() {
     setZT(zt.data||[])
   }
 
+  const [customerSearch, setCustomerSearch] = useState('')
+
+  const filteredCustomers = customers.filter(c =>
+    !customerSearch ||
+    c.mobile.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (c.area && c.area.toLowerCase().includes(customerSearch.toLowerCase()))
+  )
+
   const techsForZone = form.zone_id
     ? zoneTechs.filter(zt=>zt.zone_id===form.zone_id).map(zt=>techs.find(t=>t.id===zt.technician_id)).filter(Boolean)
     : techs
@@ -68,7 +77,7 @@ export default function Jobs() {
     const z = zones.find(z=>z.id===form.zone_id)
     await logAction(user, 'job',
       `Job created for ${form.customer_name} — ${form.service_type} — assigned to ${t?.name||'unassigned'} (${z?.name||'no zone'})`)
-    setModal(false); setForm(blank); loadAll()
+    setModal(false); setForm(blank); setCustomerSearch(''); loadAll()
   }
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -158,26 +167,47 @@ export default function Jobs() {
 
       {/* New job modal */}
       {modal && (
-        <Modal title="New job assignment" onClose={()=>setModal(false)} size="lg">
+        <Modal title="New job assignment" onClose={()=>{setModal(false); setForm(blank); setCustomerSearch('')}} size="lg">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Select Customer</label>
-              <select className="input" value={form.customer_id} onChange={e=>{
-                const customer = customers.find(c=>c.id===e.target.value)
-                setForm(f=>({
-                  ...f,
-                  customer_id: e.target.value,
-                  customer_name: customer?.name || '',
-                  customer_location: customer ? `${customer.address} ${customer.area}`.trim() : '',
-                }))
-              }}>
-                <option value="">Choose customer…</option>
-                {customers.map(c=>(
-                  <option key={c.id} value={c.id}>{c.name} {c.area ? `(${c.area})` : ''}</option>
-                ))}
-              </select>
+            <div className="relative">
+              <label className="label">Select Customer by Mobile</label>
+              <input
+                type="text"
+                className="input mb-2"
+                placeholder="Search by mobile, name, or area..."
+                value={customerSearch}
+                onChange={e=>setCustomerSearch(e.target.value)}
+              />
+              {customerSearch && filteredCustomers.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {filteredCustomers.slice(0, 10).map(c=>(
+                    <div
+                      key={c.id}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      onClick={()=>{
+                        setForm(f=>({
+                          ...f,
+                          customer_id: c.id,
+                          customer_name: c.name || '',
+                          customer_location: `${c.address || ''} ${c.area || ''}`.trim(),
+                        }))
+                        setCustomerSearch('')
+                      }}
+                    >
+                      <div className="font-medium">{c.mobile}</div>
+                      <div className="text-sm text-gray-600">{c.name} {c.area ? `(${c.area})` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {customerSearch && filteredCustomers.length === 0 && (
+                <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-gray-500 text-sm">
+                  No customers found
+                </div>
+              )}
             </div>
-            <div><label className="label">Location / address</label><input className="input" value={form.customer_location} onChange={e=>setForm(f=>({...f,customer_location:e.target.value}))}/></div>
+            <div><label className="label">Customer Name</label><input className="input" value={form.customer_name} readOnly/></div>
+            <div className="col-span-2"><label className="label">Location / address</label><input className="input" value={form.customer_location} onChange={e=>setForm(f=>({...f,customer_location:e.target.value}))}/></div>
             <div>
               <label className="label">Zone</label>
               <select className="input" value={form.zone_id} onChange={e=>setForm(f=>({...f,zone_id:e.target.value,assigned_to:''}))}>
