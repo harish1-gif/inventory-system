@@ -5,8 +5,8 @@ import { useBusiness } from '../context/BusinessContext'
 import { fmtM, logAction } from '../lib/utils'
 import { format, subMonths, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { Bar, Doughnut } from 'react-chartjs-2'
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js'
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement)
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, LineController } from 'chart.js'
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, LineController)
 
 export default function Analytics() {
   const { user }           = useAuth()
