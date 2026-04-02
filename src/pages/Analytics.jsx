@@ -137,7 +137,7 @@ export default function Analytics() {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {[
           { l:'Revenue this month', v:fmtM(revenue), c:isB2C?'text-blue-600':'text-emerald-600' },
           { l:'Transactions',       v:movements.filter(m=>m.type==='use'||m.type==='dispatch').length, c:'text-gray-800' },
@@ -152,7 +152,7 @@ export default function Analytics() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 mb-4 overflow-x-auto">
         <div className="card">
           <div className="section-title">Revenue vs target — 6 months</div>
           <div className="flex gap-4 text-xs text-gray-500 mb-2">

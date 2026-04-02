@@ -97,7 +97,7 @@ export default function Updates() {
         </div>
 
         {/* Monthly summary */}
-        <div className="border-t border-gray-50 pt-3 grid grid-cols-4 md:grid-cols-7 gap-2">
+        <div className="border-t border-gray-50 pt-3 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
           {Object.entries(CAT_LABELS).map(([key,label])=>{
             const cnt = logs.filter(l=>l.category===key).length
             return (
@@ -121,12 +121,12 @@ export default function Updates() {
 
           {/* Filters */}
           <div className="flex gap-2 mb-3 flex-wrap">
-            <input className="input w-44 text-xs" placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)}/>
-            <select className="input w-36 text-xs" value={catFilter} onChange={e=>setCat(e.target.value)}>
+            <input className="input w-full sm:w-44 text-xs" placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)}/>
+            <select className="input w-full sm:w-36 text-xs" value={catFilter} onChange={e=>setCat(e.target.value)}>
               <option value="all">All categories</option>
               {Object.entries(CAT_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
             </select>
-            <select className="input w-28 text-xs" value={roleFilter} onChange={e=>setRole(e.target.value)}>
+            <select className="input w-full sm:w-28 text-xs" value={roleFilter} onChange={e=>setRole(e.target.value)}>
               <option value="all">All roles</option>
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>

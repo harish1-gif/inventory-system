@@ -66,16 +66,16 @@ export default function JobHistory() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="page-title mb-0">Job Completed History</h1>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
           <input 
             type="text" 
             placeholder="Search jobs..." 
             value={search} 
             onChange={e=>setSearch(e.target.value)} 
-            className="input w-64" 
+            className="input w-full sm:w-64" 
           />
           <select 
-            className="input w-40 text-xs" 
+            className="input w-full sm:w-40 text-xs" 
             value={selectedMonth} 
             onChange={e=>setSelectedMonth(e.target.value)}
           >
@@ -87,8 +87,8 @@ export default function JobHistory() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <table className="w-full text-xs">
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-xs min-w-max">
           <thead><tr>
             <th className="th">Customer</th><th className="th">Mobile</th><th className="th">Zone</th><th className="th">Technician</th>
             <th className="th">Service type</th><th className="th">Hours</th>

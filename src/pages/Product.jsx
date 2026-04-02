@@ -179,8 +179,8 @@ export default function Product() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <table className="w-full text-xs">
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-xs min-w-max">
           <thead><tr>
             <th className="th">Name</th><th className="th">Model</th><th className="th">Category</th>
             <th className="th">Price</th><th className="th">Image</th><th className="th"></th>

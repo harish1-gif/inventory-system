@@ -140,7 +140,7 @@ export default function Inventory() {
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 mb-4">
         {[
           { l:'Total items', v:items.length, c:'text-gray-800', bg:'bg-gray-50' },
           { l:'Low stock',   v:items.filter(s=>s.qty>0&&s.qty<=s.min_qty).length, c:'text-amber-700', bg:'bg-amber-50' },

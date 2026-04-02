@@ -118,7 +118,7 @@ export default function OnlineOrders() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-4">
         {[
           { label: 'Total Orders', value: stats.totalOrders, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Today Orders', value: stats.todayCount, color: 'text-green-600', bg: 'bg-green-50' },
@@ -134,7 +134,7 @@ export default function OnlineOrders() {
       </div>
 
       {/* Stock Status Table */}
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden mb-4">
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden mb-4 overflow-x-auto">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
           <h3 className="text-sm font-semibold">Stock Status & Today's Sales</h3>
         </div>
@@ -185,7 +185,7 @@ export default function OnlineOrders() {
       </div>
 
       {/* Today's Orders Table */}
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
           <h3 className="text-sm font-semibold">Today's Online Orders ({todayOrders.length})</h3>
         </div>
@@ -228,7 +228,7 @@ export default function OnlineOrders() {
       {addModal && (
         <Modal title="Create Online Order" onClose={() => setAddModal(false)} size="lg">
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="label">Order Number *</label>
                 <input className="input" placeholder="e.g., ORD-20260322-001" value={form.order_number} onChange={e => setForm(f => ({ ...f, order_number: e.target.value }))} />

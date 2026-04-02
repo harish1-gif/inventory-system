@@ -316,8 +316,8 @@ export default function Customers() {
         ))}
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <table className="w-full text-xs">
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-xs min-w-max">
           <thead><tr>
             <th className="th">Name</th><th className="th">Mobile</th><th className="th">Area</th><th className="th">Address</th><th className="th">Source</th>
             <th className="th">Purifiers</th><th className="th">Last service</th>

@@ -160,7 +160,7 @@ export default function BagStock() {
       )}
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4">
         {tab === 'history' ? (
           [
             { l:'Items used up', v:displayed.length, c:'text-blue-700', bg:'bg-blue-50' },
@@ -187,8 +187,8 @@ export default function BagStock() {
       </div>
 
       {/* Bag table */}
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <table className="w-full text-xs">
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-xs min-w-max">
           <thead><tr>
             {tab === 'history' ? (
               <>

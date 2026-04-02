@@ -91,7 +91,7 @@ export default function Users() {
 
       {modal && isMgr && (
         <Modal title={modal==='add'?'Add user':'Edit user'} onClose={()=>setModal(null)}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div><label className="label">Name</label><input className="input" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
             <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></div>
             <div><label className="label">Password</label><input className="input" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>

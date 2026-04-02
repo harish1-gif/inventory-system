@@ -115,7 +115,7 @@ export default function Jobs() {
             placeholder="Search jobs..." 
             value={search} 
             onChange={e=>setSearch(e.target.value)} 
-            className="input w-64" 
+            className="input w-full sm:w-64" 
           />
           <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1 text-xs">
             <button onClick={()=>setActiveTab('active')}
@@ -131,8 +131,8 @@ export default function Jobs() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <table className="w-full text-xs">
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-xs min-w-max">
           <thead><tr>
             <th className="th">Customer</th><th className="th">Mobile</th><th className="th">Zone</th><th className="th">Technician</th>
             <th className="th">Service type</th><th className="th">Hours</th>
@@ -168,7 +168,7 @@ export default function Jobs() {
       {/* New job modal */}
       {modal && (
         <Modal title="New job assignment" onClose={()=>{setModal(false); setForm(blank); setCustomerSearch('')}} size="lg">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="relative">
               <label className="label">Select Customer by Mobile</label>
               <input
