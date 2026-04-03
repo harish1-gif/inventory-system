@@ -132,6 +132,7 @@ create table purifiers (
   done_count        int default 0,
   image_url         text,
   status            text default 'active' check (status in ('active','inactive')),
+  created_by        uuid,
   created_at        timestamptz default now()
 );
 

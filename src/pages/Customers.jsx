@@ -28,7 +28,7 @@ export default function Customers() {
   const [statusModal, setStatusModal] = useState(null)
   const [payModal, setPayModal]   = useState(null)
   const [purifierModal, setPurifierModal] = useState(null)
-  const [form, setForm]           = useState({ name:'', mobile:'', address:'', area:'', business_type:'b2c', source:'offline', since: new Date().toISOString().split('T')[0] })
+  const [form, setForm]           = useState({ name:'', mobile:'', address:'', area:'', business_type:'b2c', source:'offline', since: new Date().toISOString().split('T')[0], purifier_model_id:'', total_amount:'', pending_amount:'' })
   const canEdit     = user.role === 'admin' || user.role === 'manager'
   const canSeeNotes = user.role !== 'technician'
 
@@ -106,13 +106,26 @@ export default function Customers() {
 
   async function addCustomer() {
     if (!form.name || !form.mobile) return
-    await supabase.from('customers').insert({ ...form, business_type: activeTab, source: form.source || 'offline', status:'pending' })
+    const { data: newCust } = await supabase.from('customers').insert({ name: form.name, mobile: form.mobile, address: form.address, area: form.area, business_type: activeTab, source: form.source || 'offline', status:'pending', since: form.since, purifier_model_id: form.purifier_model_id || null }).select().single()
+    
+    if (newCust && (form.total_amount || form.pending_amount)) {
+      await supabase.from('service_calls').insert({
+        customer_id: newCust.id,
+        call_datetime: new Date().toISOString(),
+        total_amount: Number(form.total_amount) || 0,
+        received_amount: Number(form.total_amount) - Number(form.pending_amount) || 0,
+        pending_amount: Number(form.pending_amount) || 0,
+        status: Number(form.pending_amount) > 0 ? 'pending' : 'complete',
+        payment_mode: 'CASH'
+      })
+    }
+    
     await supabase.from('update_log').insert({
       by_user_id: user.id, by_name: user.name, by_role: user.role,
       category: 'customer', description: `New ${activeTab.toUpperCase()} customer added: ${form.name}`
     })
     setAddModal(false)
-    setForm({ name:'', mobile:'', address:'', area:'', business_type:activeTab, since: new Date().toISOString().split('T')[0] })
+    setForm({ name:'', mobile:'', address:'', area:'', business_type:activeTab, source:'offline', since: new Date().toISOString().split('T')[0], purifier_model_id:'', total_amount:'', pending_amount:'' })
     load()
   }
 
@@ -393,6 +406,21 @@ export default function Customers() {
             </div>
             <div><label className="label">Customer since</label><input type="date" className="input" value={form.since} onChange={e=>setForm(f=>({...f,since:e.target.value}))}/></div>
             <div className="col-span-2"><label className="label">Address</label><input className="input" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))}/></div>
+            <div>
+              <label className="label">Purifier Model (optional)</label>
+              <select className="input" value={form.purifier_model_id} onChange={e=>setForm(f=>({...f,purifier_model_id:e.target.value}))}>
+                <option value="">Select Model</option>
+                {purifierModels.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Total Amount ₹ (optional)</label>
+              <input type="number" className="input" placeholder="0" value={form.total_amount} onChange={e=>setForm(f=>({...f,total_amount:e.target.value}))}/>
+            </div>
+            <div>
+              <label className="label">Pending Amount ₹ (optional)</label>
+              <input type="number" className="input" placeholder="0" value={form.pending_amount} onChange={e=>setForm(f=>({...f,pending_amount:e.target.value}))}/>
+            </div>
             <div className="col-span-2">
               <label className="label">Business Type</label>
               <div className="flex gap-2">
