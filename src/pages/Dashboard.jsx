@@ -20,7 +20,6 @@ export default function Dashboard() {
   const [pendingCustomers, setPendingCustomers] = useState([])
   const [totalPendingAmount, setTotalPendingAmount] = useState(0)
   const [showPendingModal, setShowPendingModal] = useState(false)
-  const [showJobsModal, setShowJobsModal] = useState(false)
   const [outOfStockItems, setOutOfStockItems] = useState([])
   const isTech = user.role === 'technician'
   const isMgr  = user.role === 'manager'
@@ -72,8 +71,9 @@ export default function Dashboard() {
       }
     })
 
-    // Build final list with customer details
+    // Build final list with customer details - filter out customers without valid data
     const pendingList = Object.entries(customerPendingMap)
+      .filter(([custId, data]) => customerMap[custId] && customerMap[custId].name) // Only include valid customers
       .map(([custId, data]) => ({
         ...customerMap[custId],
         id: custId,
@@ -117,7 +117,7 @@ export default function Dashboard() {
     // Fetch out of stock items details
     const { data: outStockB2c } = await supabase.from('stock').select('product_name,qty').eq('business','b2c').eq('qty',0)
     const { data: outStockB2b } = await supabase.from('stock').select('product_name,qty').eq('business','b2b').eq('qty',0)
-    const allOutStock = [...(outStockB2c || []), ...(outStockB2b || [])]
+    const allOutStock = [...(outStockB2c || []), ...(outStockB2b || [])].slice(0, 5)
     setOutOfStockItems(allOutStock)
 
     // Fetch pending jobs details
@@ -126,6 +126,7 @@ export default function Dashboard() {
       .select('id, customer_name, service_type, created_at')
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
+      .limit(5)
     setPendingJobsList(pendingJobsData || [])
     setPending(pendingJobsData?.length || 0)
 
@@ -235,11 +236,11 @@ export default function Dashboard() {
               <div className="font-medium text-amber-900">{pendingJobs} job{pendingJobs>1?'s':''} pending</div>
               <div className="text-xs text-amber-700 mt-1">Waiting to be accepted by technicians</div>
             </div>
-            <button className="btn btn-sm border-amber-300 text-amber-700" onClick={()=>setShowJobsModal(true)}>View all →</button>
+            <button className="btn btn-sm border-amber-300 text-amber-700" onClick={()=>navigate('/jobs')}>View all →</button>
           </div>
           {pendingJobsList.length > 0 && (
             <div className="space-y-2 mb-3 bg-white rounded-lg p-3">
-              {pendingJobsList.slice(0, 2).map((job, i) => (
+              {pendingJobsList.slice(0, 3).map((job, i) => (
                 <div key={i} className="flex items-start justify-between text-xs border-b last:border-b-0 pb-2 last:pb-0">
                   <div>
                     <div className="font-medium text-gray-800">{job.customer_name}</div>
@@ -248,7 +249,7 @@ export default function Dashboard() {
                   <div className="text-gray-400 text-right">{fmt12(job.created_at)}</div>
                 </div>
               ))}
-              {pendingJobsList.length > 2 && <div className="text-xs text-center text-amber-600 pt-1 font-medium">+{pendingJobsList.length - 2} more</div>}
+              {pendingJobsList.length > 3 && <div className="text-xs text-center text-amber-600 pt-1 font-medium">+{pendingJobsList.length - 3} more</div>}
             </div>
           )}
         </div>
@@ -265,7 +266,7 @@ export default function Dashboard() {
           {pendingCustomers.length > 0 && (
             <div className="w-48 bg-white rounded-lg p-3 text-xs border border-red-100 space-y-1.5">
               <div className="font-medium text-gray-700 mb-2">Top pending</div>
-              {pendingCustomers.slice(0, 4).map((c, i) => (
+              {pendingCustomers.slice(0, 3).map((c, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <div>
                     <div className="font-medium text-gray-800">{c.name}</div>
@@ -274,7 +275,6 @@ export default function Dashboard() {
                   <div className="text-red-600 font-medium">₹{fmtM(c.pending_amount)}</div>
                 </div>
               ))}
-              {pendingCustomers.length > 4 && <div className="text-xs text-center text-red-600 pt-1 font-medium">+{pendingCustomers.length - 4} more</div>}
             </div>
           )}
         </div>
@@ -293,13 +293,13 @@ export default function Dashboard() {
           {outOfStockItems.length > 0 && (
             <div className="bg-white rounded-lg p-3 space-y-2">
               <div className="text-xs font-medium text-gray-700 mb-2">Out of stock items</div>
-              {outOfStockItems.slice(0, 5).map((item, i) => (
+              {outOfStockItems.map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-xs border-b last:border-b-0 pb-2 last:pb-0">
                   <div className="font-medium text-gray-800">{item.product_name}</div>
                   <span className="text-red-600 font-medium">0 qty</span>
                 </div>
               ))}
-              {outOfStockItems.length > 5 && <div className="text-xs text-center text-red-600 pt-1 font-medium">+{outOfStockItems.length - 5} more</div>}
+              {b2cStats.out + b2bStats.out > 5 && <div className="text-xs text-center text-red-600 pt-1 font-medium">+{b2cStats.out + b2bStats.out - 5} more</div>}
             </div>
           )}
         </div>
@@ -347,43 +347,6 @@ export default function Dashboard() {
           </div>
           <ModalFooter>
             <button className="btn" onClick={()=>setShowPendingModal(false)}>Close</button>
-          </ModalFooter>
-        </Modal>
-      )}
-
-      {/* Pending jobs modal */}
-      {showJobsModal && (
-        <Modal title={`${pendingJobs} Pending Job${pendingJobs>1?'s':''}`} onClose={()=>setShowJobsModal(false)} size="lg">
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
-            <table className="w-full text-xs min-w-max">
-              <thead>
-                <tr>
-                  <th className="th">Customer</th>
-                  <th className="th">Service type</th>
-                  <th className="th">Created</th>
-                  <th className="th"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingJobsList.map(job => (
-                  <tr key={job.id} className="hover:bg-gray-50">
-                    <td className="td">
-                      <div className="font-medium">{job.customer_name}</div>
-                    </td>
-                    <td className="td">{job.service_type}</td>
-                    <td className="td text-gray-500">{fmt12(job.created_at)}</td>
-                    <td className="td">
-                      <button className="text-xs text-blue-600 hover:underline" onClick={() => navigate('/jobs')}>View →</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {pendingJobsList.length === 0 && <p className="text-xs text-gray-400 text-center py-6">No pending jobs</p>}
-          </div>
-          <ModalFooter>
-            <button className="btn" onClick={()=>setShowJobsModal(false)}>Close</button>
-            <button className="btn-primary" onClick={() => navigate('/jobs')}>Go to Jobs →</button>
           </ModalFooter>
         </Modal>
       )}
