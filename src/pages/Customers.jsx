@@ -413,14 +413,18 @@ export default function Customers() {
                 {purifierModels.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             </div>
-            <div>
-              <label className="label">Total Amount ₹ (optional)</label>
-              <input type="number" className="input" placeholder="0" value={form.total_amount} onChange={e=>setForm(f=>({...f,total_amount:e.target.value}))}/>
-            </div>
-            <div>
-              <label className="label">Pending Amount ₹ (optional)</label>
-              <input type="number" className="input" placeholder="0" value={form.pending_amount} onChange={e=>setForm(f=>({...f,pending_amount:e.target.value}))}/>
-            </div>
+            {canEdit && (
+              <>
+                <div>
+                  <label className="label">Total Amount ₹ (optional)</label>
+                  <input type="number" className="input" placeholder="0" value={form.total_amount} onChange={e=>setForm(f=>({...f,total_amount:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="label">Pending Amount ₹ (optional)</label>
+                  <input type="number" className="input" placeholder="0" value={form.pending_amount} onChange={e=>setForm(f=>({...f,pending_amount:e.target.value}))}/>
+                </div>
+              </>
+            )}
             <div className="col-span-2">
               <label className="label">Business Type</label>
               <div className="flex gap-2">
