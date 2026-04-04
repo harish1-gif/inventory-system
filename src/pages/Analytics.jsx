@@ -13,6 +13,7 @@ export default function Analytics() {
   const { business, setBusiness } = useBusiness()
   const [monthDate, setM]  = useState(new Date())
   const [movements, setMov]= useState([])
+  const [onlineOrders, setOnlineOrders] = useState([])
   const [target, setTarget]= useState(business==='b2c'?1500000:3500000)
   const [anaShared, setShared] = useState(false)
   const isMgr = user.role === 'manager'
@@ -32,11 +33,18 @@ export default function Analytics() {
   async function loadData() {
     const start = format(startOfMonth(monthDate),'yyyy-MM-dd')
     const end   = format(endOfMonth(monthDate),'yyyy-MM-dd')+'T23:59:59'
-    const { data } = await supabase.from('stock_movements')
-      .select('*').eq('business', business)
-      .gte('created_at', start).lte('created_at', end)
-      .order('created_at',{ascending:false})
-    setMov(data||[])
+    const [movRes, ordersRes] = await Promise.all([
+      supabase.from('stock_movements')
+        .select('*').eq('business', business)
+        .gte('created_at', start).lte('created_at', end)
+        .order('created_at',{ascending:false}),
+      supabase.from('online_orders')
+        .select('*').eq('business', business)
+        .gte('created_at', start).lte('created_at', end)
+        .order('created_at',{ascending:false})
+    ])
+    setMov(movRes.data||[])
+    setOnlineOrders(ordersRes.data||[])
   }
 
   async function toggleShare() {
@@ -210,6 +218,49 @@ export default function Analytics() {
           {moveRows.length===0 && <p className="text-xs text-gray-400 text-center py-6">No movement data this month</p>}
         </div>
       </div>
+
+      {/* Online Sales Analytics */}
+      {onlineOrders.length > 0 && (
+        <div className="card mt-4">
+          <div className="section-title">Online Sales — {format(monthDate,"MMMM yyyy")} · {business.toUpperCase()}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="bg-blue-50 rounded-lg p-3">
+              <div className="text-xs text-gray-500 mb-1">Total Orders</div>
+              <div className="text-xl font-bold text-blue-600">{onlineOrders.length}</div>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-3">
+              <div className="text-xs text-gray-500 mb-1">Total Units Sold</div>
+              <div className="text-xl font-bold text-purple-600">{onlineOrders.reduce((a,o)=>a+o.quantity_ordered,0)}</div>
+            </div>
+            <div className="bg-green-50 rounded-lg p-3">
+              <div className="text-xs text-gray-500 mb-1">Online Revenue</div>
+              <div className="text-xl font-bold text-green-600">{fmtM(onlineOrders.reduce((a,o)=>a+(o.quantity_ordered*o.order_price),0))}</div>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr>
+                <th className="th">Order #</th><th className="th">Item</th><th className="th">Qty</th>
+                <th className="th">Price</th><th className="th">Total ₹</th><th className="th">Platform</th><th className="th">Date</th>
+              </tr></thead>
+              <tbody>
+                {onlineOrders.slice(0,10).map((o,i)=>(
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="td font-medium">{o.order_number}</td>
+                    <td className="td">{o.stock_name}</td>
+                    <td className="td"><span className="badge badge-blue">{o.quantity_ordered}</span></td>
+                    <td className="td">{fmtM(o.order_price)}</td>
+                    <td className="td font-medium text-blue-700">{fmtM(o.quantity_ordered*o.order_price)}</td>
+                    <td className="td text-gray-500 text-xs">{o.platform}</td>
+                    <td className="td text-gray-400 text-xs">{format(new Date(o.created_at),'dd MMM')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {onlineOrders.length > 10 && <p className="text-xs text-gray-500 text-center py-2">+{onlineOrders.length-10} more orders</p>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useBusiness } from '../context/BusinessContext'
-import { format } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
 import { fmt12, fmtM, fmtNum } from '../lib/utils'
 import Modal, { ModalFooter } from '../components/Modal'
 
@@ -12,6 +12,10 @@ export default function OnlineOrders() {
   const [orders, setOrders] = useState([])
   const [stocks, setStocks] = useState([])
   const [addModal, setAddModal] = useState(false)
+  const [historyModal, setHistoryModal] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [filterType, setFilterType] = useState('month') // 'day' or 'month'
+  const [historyOrders, setHistoryOrders] = useState([])
   const [form, setForm] = useState({
     order_number: '', stock_id: '', quantity_ordered: 1, customer_name: '',
     platform: 'Direct', order_price: '', order_date: format(new Date(), 'yyyy-MM-dd'),
@@ -20,6 +24,33 @@ export default function OnlineOrders() {
   const today = format(new Date(), 'yyyy-MM-dd')
 
   useEffect(() => { load() }, [business])
+
+  async function loadHistory() {
+    let start, end
+    if (filterType === 'day') {
+      start = format(selectedDate, 'yyyy-MM-dd')
+      end = format(selectedDate, 'yyyy-MM-dd') + 'T23:59:59'
+    } else {
+      start = format(startOfMonth(selectedDate), 'yyyy-MM-dd')
+      end = format(endOfMonth(selectedDate), 'yyyy-MM-dd') + 'T23:59:59'
+    }
+    
+    const { data } = await supabase
+      .from('online_orders')
+      .select('*')
+      .eq('business', business)
+      .gte('created_at', start)
+      .lte('created_at', end)
+      .order('created_at', { ascending: false })
+    
+    setHistoryOrders(data || [])
+  }
+
+  useEffect(() => {
+    if (historyModal) {
+      loadHistory()
+    }
+  }, [selectedDate, filterType, historyModal, business])
 
   async function load() {
     const [ordersRes, stocksRes] = await Promise.all([
@@ -186,8 +217,11 @@ export default function OnlineOrders() {
 
       {/* Today's Orders Table */}
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Today's Online Orders ({todayOrders.length})</h3>
+          <button className="btn btn-sm text-xs border-blue-300 text-blue-600" onClick={() => setHistoryModal(true)}>
+            📅 View History
+          </button>
         </div>
         <table className="w-full text-xs">
           <thead>
@@ -290,6 +324,113 @@ export default function OnlineOrders() {
           <ModalFooter>
             <button className="btn" onClick={() => setAddModal(false)}>Cancel</button>
             <button className="btn-primary rounded-lg px-4 py-1.5 text-sm" onClick={addOrder}>Create Order</button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {/* Sales History Modal */}
+      {historyModal && (
+        <Modal title="Sales History" onClose={() => setHistoryModal(false)} size="lg">
+          <div className="mb-4 space-y-3">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilterType('day')}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                  filterType === 'day'
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white text-gray-600 border-gray-200'
+                }`}
+              >
+                By Day
+              </button>
+              <button
+                onClick={() => setFilterType('month')}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                  filterType === 'month'
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white text-gray-600 border-gray-200'
+                }`}
+              >
+                By Month
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedDate(filterType === 'day' ? new Date(selectedDate.getTime() - 86400000) : subMonths(selectedDate, 1))}
+                className="btn btn-sm text-xs"
+              >
+                ← Prev
+              </button>
+              <input
+                type={filterType === 'day' ? 'date' : 'month'}
+                value={format(selectedDate, filterType === 'day' ? 'yyyy-MM-dd' : 'yyyy-MM')}
+                onChange={e => setSelectedDate(new Date(e.target.value + (filterType === 'day' ? '' : '-01')))}
+                className="input flex-1 text-xs"
+              />
+              <button
+                onClick={() => setSelectedDate(filterType === 'day' ? new Date(selectedDate.getTime() + 86400000) : addMonths(selectedDate, 1))}
+                className="btn btn-sm text-xs"
+              >
+                Next →
+              </button>
+            </div>
+
+            {/* Summary Stats */}
+            {historyOrders.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <div className="text-xs text-gray-500">Orders</div>
+                  <div className="text-lg font-bold text-blue-600">{historyOrders.length}</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-xs text-gray-500">Total Qty</div>
+                  <div className="text-lg font-bold text-green-600">{historyOrders.reduce((a, o) => a + o.quantity_ordered, 0)}</div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3 text-center">
+                  <div className="text-xs text-gray-500">Revenue</div>
+                  <div className="text-lg font-bold text-purple-600">{fmtM(historyOrders.reduce((a, o) => a + (o.quantity_ordered * o.order_price), 0))}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* History Table */}
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+            <table className="w-full text-xs min-w-max">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="th">Order #</th>
+                  <th className="th">Item</th>
+                  <th className="th">Qty</th>
+                  <th className="th">Price</th>
+                  <th className="th">Total</th>
+                  <th className="th">Platform</th>
+                  <th className="th">Customer</th>
+                  <th className="th">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyOrders.map(order => (
+                  <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="td font-medium">{order.order_number}</td>
+                    <td className="td">{order.stock_name}</td>
+                    <td className="td">
+                      <span className="badge badge-blue">{order.quantity_ordered}</span>
+                    </td>
+                    <td className="td">{fmtM(order.order_price)}</td>
+                    <td className="td font-medium text-blue-600">{fmtM(order.quantity_ordered * order.order_price)}</td>
+                    <td className="td text-gray-500">{order.platform}</td>
+                    <td className="td text-gray-500 text-xs">{order.customer_name}</td>
+                    <td className="td text-gray-400 text-xs">{fmt12(order.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {historyOrders.length === 0 && <p className="text-xs text-gray-400 text-center py-6">No orders in selected period</p>}
+          </div>
+          <ModalFooter>
+            <button className="btn" onClick={() => setHistoryModal(false)}>Close</button>
           </ModalFooter>
         </Modal>
       )}

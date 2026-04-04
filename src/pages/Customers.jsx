@@ -333,7 +333,7 @@ export default function Customers() {
         <table className="w-full text-xs min-w-max">
           <thead><tr>
             <th className="th">Name</th><th className="th">Mobile</th><th className="th">Area</th><th className="th">Address</th><th className="th">Source</th>
-            <th className="th">Purifiers</th><th className="th">Last service</th>
+            <th className="th">Purifiers</th><th className="th">Last service</th><th className="th">Follow-up</th>
             <th className="th">Pending ₹</th><th className="th">Status</th><th className="th"></th>
           </tr></thead>
           <tbody>
@@ -341,6 +341,10 @@ export default function Customers() {
               const pend   = (c.service_calls||[]).reduce((a,b)=>a+Number(b.pending_amount),0)
               const sorted = (c.service_calls||[]).sort((a,b)=>new Date(b.call_datetime)-new Date(a.call_datetime))
               const lastSvc = sorted[0] ? fmt12(sorted[0].call_datetime) : '—'
+              const lastServiceDate = c.last_service_date ? new Date(c.last_service_date) : null
+              const daysSinceService = lastServiceDate ? Math.floor((new Date() - lastServiceDate) / (1000 * 60 * 60 * 24)) : null
+              const needsFollowUp = daysSinceService && daysSinceService > 30
+              const overdue = daysSinceService && daysSinceService > 45
               return(
                 <tr key={c.id} className={`hover:bg-gray-50 ${c.status==='rejected'?'opacity-60':''}`}>
                   <td className="td">
@@ -353,6 +357,17 @@ export default function Customers() {
                   <td className="td"><span className={`badge ${SOURCE_COLORS[c.source]||'badge-gray'}`}>{SOURCE_LABELS[c.source]||'Unknown'}</span></td>
                   <td className="td">{c.purifier_model_name ? <span className="badge badge-blue">{c.purifier_model_name}</span> : '—'}</td>
                   <td className="td text-gray-400" style={{fontSize:'11px'}}>{lastSvc}</td>
+                  <td className="td">
+                    {!daysSinceService ? (
+                      <span className="text-gray-400 text-xs">No service</span>
+                    ) : overdue ? (
+                      <div><span className="badge badge-danger">🔴 Overdue</span></div>
+                    ) : needsFollowUp ? (
+                      <div><span className="badge badge-warn">🟡 {daysSinceService}d ago</span></div>
+                    ) : (
+                      <div><span className="badge badge-ok">🟢 {daysSinceService}d ago</span></div>
+                    )}
+                  </td>
                   <td className="td">
                     {pend>0?<span className="font-medium text-red-500">{fmtM(pend)}</span>:<span className="badge badge-ok">Clear</span>}
                   </td>
@@ -601,6 +616,39 @@ export default function Customers() {
             <div className="flex items-center justify-between mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
               <span className="text-xs text-blue-700">No purifiers added yet</span>
               <button className="btn btn-sm text-xs" onClick={()=>setPurifierModal({purifier_model_id:'',model:'',serial_no:'',installed_date:new Date().toISOString().split('T')[0],interval_days:90,total_services:4,status:'active',image_url:''})}>+ Add purifier</button>
+            </div>
+          )}
+
+          {/* Last Service Summary */}
+          {profile.cust?.last_service_date && (
+            <div className="mb-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+              <div className="section-title mb-3">Last Service Summary</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded p-2">
+                  <div className="text-xs text-gray-500">Last Service Date</div>
+                  <div className="text-sm font-bold text-blue-600">{fmt12(profile.cust.last_service_date)}</div>
+                </div>
+                <div className="bg-white rounded p-2">
+                  <div className="text-xs text-gray-500">Days Since Service</div>
+                  <div className="text-sm font-bold text-purple-600">
+                    {Math.floor((new Date() - new Date(profile.cust.last_service_date)) / (1000 * 60 * 60 * 24))} days
+                  </div>
+                </div>
+              </div>
+              {(() => {
+                const daysSince = Math.floor((new Date() - new Date(profile.cust.last_service_date)) / (1000 * 60 * 60 * 24))
+                return (
+                  <div className="mt-3 p-2 rounded bg-white text-xs">
+                    {daysSince > 45 ? (
+                      <div className="text-red-600 font-medium">🔴 OVERDUE - Follow-up required immediately</div>
+                    ) : daysSince > 30 ? (
+                      <div className="text-amber-700 font-medium">🟡 Follow-up needed soon</div>
+                    ) : (
+                      <div className="text-green-700 font-medium">🟢 Service within normal schedule</div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
