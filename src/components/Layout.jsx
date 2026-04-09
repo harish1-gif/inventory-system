@@ -18,6 +18,8 @@ const NAV = [
   { to:'/updates',     label:'Updates',      icon:'◑', roles:['admin','manager'] },
   { to:'/users',       label:'Users',        icon:'👤', roles:['admin','manager'] },
   { to:'/jobhistory',  label:'Job History',  icon:'📋', roles:['admin','manager'] },
+  { to:'/jobreports',  label:'Job Reports',  icon:'📊', roles:['admin','manager'] },
+  { to:'/servicecalls',label:'Service Calls',icon:'☎', roles:['admin','manager'] },
 ]
 
 export default function Layout() {
