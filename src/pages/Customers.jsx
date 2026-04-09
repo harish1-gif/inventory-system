@@ -22,6 +22,10 @@ export default function Customers() {
   const [search, setSearch]       = useState('')
   const [filterStatus, setFilter] = useState('all')
   const [filterSource, setFilterSource] = useState('all')
+  const [filterFromDate, setFilterFromDate] = useState('')
+  const [filterToDate, setFilterToDate] = useState('')
+  const [sortBy, setSortBy] = useState('name')
+  const [sortDir, setSortDir] = useState('asc')
   const [addModal, setAddModal]   = useState(false)
   const [editModal, setEditModal] = useState(null)
   const [profile, setProfile]     = useState(null)
@@ -256,14 +260,57 @@ export default function Customers() {
     .filter(c => filterStatus==='all' ? true : c.status===filterStatus)
     .filter(c => filterSource==='all' ? true : c.source===filterSource)
     .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.mobile.includes(search))
+    .filter(c => {
+      if (!filterFromDate && !filterToDate) return true
+      const customerDate = new Date(c.since)
+      if (filterFromDate && customerDate < new Date(filterFromDate)) return false
+      if (filterToDate && customerDate > new Date(filterToDate)) return false
+      return true
+    })
+    .sort((a, b) => {
+      let aVal, bVal
+      
+      switch(sortBy) {
+        case 'name':
+          aVal = a.name.toLowerCase()
+          bVal = b.name.toLowerCase()
+          break
+        case 'since':
+          aVal = new Date(a.since)
+          bVal = new Date(b.since)
+          break
+        case 'mobile':
+          aVal = a.mobile
+          bVal = b.mobile
+          break
+        case 'status':
+          aVal = a.status
+          bVal = b.status
+          break
+        case 'pending':
+          aVal = (a.service_calls||[]).reduce((sum, sc) => sum + Number(sc.pending_amount), 0)
+          bVal = (b.service_calls||[]).reduce((sum, sc) => sum + Number(sc.pending_amount), 0)
+          break
+        case 'last_service':
+          aVal = a.last_service_date ? new Date(a.last_service_date) : new Date(0)
+          bVal = b.last_service_date ? new Date(b.last_service_date) : new Date(0)
+          break
+        default:
+          return 0
+      }
+      
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
 
-  // Stats
+  // Stats - Calculate from filtered results
   const counts = {
-    pending: customers.filter(c=>c.status==='pending').length,
-    completed: customers.filter(c=>c.status==='completed').length,
-    rejected: customers.filter(c=>c.status==='rejected').length,
-    online: customers.filter(c=>c.source==='online').length,
-    offline: customers.filter(c=>c.source==='offline').length,
+    pending: filtered.filter(c=>c.status==='pending').length,
+    completed: filtered.filter(c=>c.status==='completed').length,
+    rejected: filtered.filter(c=>c.status==='rejected').length,
+    online: filtered.filter(c=>c.source==='online').length,
+    offline: filtered.filter(c=>c.source==='offline').length,
   }
 
   return (
@@ -303,7 +350,7 @@ export default function Customers() {
       {/* Status + Source filter + counts */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {[
-          { key:'all',       label:`All (${customers.length})` },
+          { key:'all',       label:`All (${filtered.length})` },
           { key:'pending',   label:`Pending (${counts.pending})`,   cls:'text-amber-700 border-amber-200 bg-amber-50' },
           { key:'completed', label:`Completed (${counts.completed})`, cls:'text-green-700 border-green-200 bg-green-50' },
           { key:'rejected',  label:`Rejected (${counts.rejected})`,  cls:'text-red-700 border-red-200 bg-red-50' },
@@ -315,9 +362,10 @@ export default function Customers() {
           </button>
         ))}
       </div>
-      <div className="flex gap-2 mb-4 flex-wrap">
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
+        <label className="text-xs font-medium text-gray-600">Source:</label>
         {[
-          { key:'all', label:`All (${customers.length})` },
+          { key:'all', label:`All (${filtered.length})` },
           { key:'online', label:`Online (${counts.online})`, cls:'text-blue-700 border-blue-200 bg-blue-50' },
           { key:'offline', label:`Offline (${counts.offline})`, cls:'text-gray-700 border-gray-200 bg-gray-50' },
         ].map(tab=>(
@@ -329,10 +377,69 @@ export default function Customers() {
         ))}
       </div>
 
+      {/* Date filter */}
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
+        <label className="text-xs font-medium text-gray-600">Customer since:</label>
+        <input 
+          type="date" 
+          className="input text-xs py-1.5 px-2 w-32" 
+          placeholder="From date"
+          value={filterFromDate}
+          onChange={e => setFilterFromDate(e.target.value)}
+          title="Filter from this date"
+        />
+        <span className="text-gray-400">to</span>
+        <input 
+          type="date" 
+          className="input text-xs py-1.5 px-2 w-32" 
+          placeholder="To date"
+          value={filterToDate}
+          onChange={e => setFilterToDate(e.target.value)}
+          title="Filter until this date"
+        />
+        {(filterFromDate || filterToDate) && (
+          <button 
+            className="text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1.5 rounded-lg border border-gray-200"
+            onClick={() => { setFilterFromDate(''); setFilterToDate('') }}
+          >
+            Clear dates
+          </button>
+        )}
+      </div>
+
+      {/* Sort options */}
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
+        <label className="text-xs font-medium text-gray-600">Sort by:</label>
+        <select 
+          className="input text-xs py-1.5 px-2 w-40" 
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+        >
+          <option value="name">Name</option>
+          <option value="since">Since (Date Joined)</option>
+          <option value="mobile">Mobile</option>
+          <option value="status">Status</option>
+          <option value="pending">Pending Amount</option>
+          <option value="last_service">Last Service</option>
+        </select>
+        
+        <button
+          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+            sortDir === 'asc' 
+              ? 'bg-brand text-white border-brand' 
+              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+          onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
+          title="Click to toggle sort direction"
+        >
+          {sortDir === 'asc' ? '↑ Ascending' : '↓ Descending'}
+        </button>
+      </div>
+
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-xs min-w-max">
           <thead><tr>
-            <th className="th">Name</th><th className="th">Mobile</th><th className="th">Area</th><th className="th">Address</th><th className="th">Source</th>
+            <th className="th">Name</th><th className="th">Since</th><th className="th">Mobile</th><th className="th">Area</th><th className="th">Address</th><th className="th">Source</th>
             <th className="th">Purifiers</th><th className="th">Last service</th><th className="th">Follow-up</th>
             <th className="th">Pending ₹</th><th className="th">Status</th><th className="th"></th>
           </tr></thead>
@@ -349,8 +456,8 @@ export default function Customers() {
                 <tr key={c.id} className={`hover:bg-gray-50 ${c.status==='rejected'?'opacity-60':''}`}>
                   <td className="td">
                     <div className="font-medium">{c.name}</div>
-                    <div className="text-gray-400">Since {c.since}</div>
                   </td>
+                  <td className="td text-gray-500">{c.since}</td>
                   <td className="td">{c.mobile}</td>
                   <td className="td">{c.area}</td>
                   <td className="td">{c.address}</td>

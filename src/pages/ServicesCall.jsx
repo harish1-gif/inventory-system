@@ -272,17 +272,17 @@ export default function ServiceCalls() {
   const endIndex = startIndex + itemsPerPage
   const paginatedEnquiries = filtered.slice(startIndex, endIndex)
 
-  // Stats
+  // Stats - Calculate dynamically from filtered results
   const stats = {
-    total: enquiries.length,
-    pending: enquiries.filter(e => e.call_status === 'pending').length,
-    overdue: enquiries.filter(e => 
+    total: filtered.length,
+    pending: filtered.filter(e => e.call_status === 'pending').length,
+    overdue: filtered.filter(e => 
       !['service_done', 'skipped'].includes(e.call_status) && 
       new Date(e.due_date) < new Date()
     ).length,
-    confirmed: enquiries.filter(e => e.call_status === 'confirmed').length,
-    done: enquiries.filter(e => e.call_status === 'service_done').length,
-    noAnswer: enquiries.filter(e => e.call_status === 'called_no_answer').length,
+    confirmed: filtered.filter(e => e.call_status === 'confirmed').length,
+    done: filtered.filter(e => e.call_status === 'service_done').length,
+    noAnswer: filtered.filter(e => ['called_no_answer', 'called_callback'].includes(e.call_status)).length,
   }
 
   const StatusBadge = ({ status, dueDate }) => {
@@ -336,79 +336,79 @@ export default function ServiceCalls() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
         <button 
           className={`card text-center py-2 cursor-pointer transition ${statFilter === 'all' ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'}`}
           onClick={() => { setStatFilter('all'); setCurrentPage(1) }}
         >
-          <div className="text-xl font-bold text-gray-800">{stats.total}</div>
+          <div className="text-lg md:text-xl font-bold text-gray-800">{stats.total}</div>
           <div className="text-xs text-gray-500">Total</div>
         </button>
         <button 
           className={`card text-center py-2 cursor-pointer transition ${statFilter === 'no-action' ? 'ring-2 ring-red-500 bg-red-100' : 'bg-red-50 hover:bg-red-100'}`}
           onClick={() => { setStatFilter('no-action'); setCurrentPage(1) }}
         >
-          <div className="text-xl font-bold text-red-700">{stats.pending}</div>
+          <div className="text-lg md:text-xl font-bold text-red-700">{stats.pending}</div>
           <div className="text-xs text-gray-500">No Action</div>
         </button>
         <button 
           className={`card text-center py-2 cursor-pointer transition ${statFilter === 'overdue' ? 'ring-2 ring-red-600 bg-red-200' : 'bg-red-100 hover:bg-red-150'}`}
           onClick={() => { setStatFilter('overdue'); setCurrentPage(1) }}
         >
-          <div className="text-xl font-bold text-red-700">{stats.overdue}</div>
+          <div className="text-lg md:text-xl font-bold text-red-700">{stats.overdue}</div>
           <div className="text-xs text-gray-500">Overdue</div>
         </button>
         <button 
-          className={`card text-center py-2 cursor-pointer transition ${statFilter === 'call-needed' ? 'ring-2 ring-orange-500 bg-orange-100' : 'bg-orange-50 hover:bg-orange-100'}`}
+          className={`card text-center py-2 cursor-pointer transition hidden md:block ${statFilter === 'call-needed' ? 'ring-2 ring-orange-500 bg-orange-100' : 'bg-orange-50 hover:bg-orange-100'}`}
           onClick={() => { setStatFilter('call-needed'); setCurrentPage(1) }}
         >
-          <div className="text-xl font-bold text-orange-700">{stats.noAnswer}</div>
+          <div className="text-lg md:text-xl font-bold text-orange-700">{stats.noAnswer}</div>
           <div className="text-xs text-gray-500">Call Needed</div>
         </button>
         <button 
-          className={`card text-center py-2 cursor-pointer transition ${statFilter === 'confirmed' ? 'ring-2 ring-yellow-500 bg-yellow-100' : 'bg-yellow-50 hover:bg-yellow-100'}`}
+          className={`card text-center py-2 cursor-pointer transition hidden md:block ${statFilter === 'confirmed' ? 'ring-2 ring-yellow-500 bg-yellow-100' : 'bg-yellow-50 hover:bg-yellow-100'}`}
           onClick={() => { setStatFilter('confirmed'); setCurrentPage(1) }}
         >
-          <div className="text-xl font-bold text-yellow-700">{stats.confirmed}</div>
+          <div className="text-lg md:text-xl font-bold text-yellow-700">{stats.confirmed}</div>
           <div className="text-xs text-gray-500">Confirmed</div>
         </button>
         <button 
-          className={`card text-center py-2 cursor-pointer transition ${statFilter === 'completed' ? 'ring-2 ring-green-500 bg-green-100' : 'bg-green-50 hover:bg-green-100'}`}
+          className={`card text-center py-2 cursor-pointer transition hidden md:block ${statFilter === 'completed' ? 'ring-2 ring-green-500 bg-green-100' : 'bg-green-50 hover:bg-green-100'}`}
           onClick={() => { setStatFilter('completed'); setCurrentPage(1) }}
         >
-          <div className="text-xl font-bold text-green-700">{stats.done}</div>
+          <div className="text-lg md:text-xl font-bold text-green-700">{stats.done}</div>
           <div className="text-xs text-gray-500">Completed</div>
         </button>
       </div>
 
       {/* Status Legend */}
-      <div className="card mb-4 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500">
-        <h3 className="font-bold text-blue-900 mb-3">Status Color Guide</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex gap-3 items-start">
-            <div className="bg-red-100 text-red-700 px-3 py-1 rounded font-bold">🔴 RED</div>
-            <div className="text-sm text-gray-700">
+      <div className="card mb-4 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 p-3 md:p-4">
+        <h3 className="font-bold text-blue-900 mb-3 text-sm md:text-base">Status Color Guide</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          <div className="flex gap-2 md:gap-3 items-start">
+            <div className="bg-red-100 text-red-700 px-2 md:px-3 py-1 rounded font-bold text-xs md:text-sm whitespace-nowrap">🔴 RED</div>
+            <div className="text-xs md:text-sm text-gray-700">
               <div className="font-semibold text-red-700">No Action Yet</div>
               <div className="text-gray-600">No call has been made to this customer</div>
             </div>
           </div>
-          <div className="flex gap-3 items-start">
-            <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded font-bold">🟠 ORANGE</div>
-            <div className="text-sm text-gray-700">
+          <div className="flex gap-2 md:gap-3 items-start">
+            <div className="bg-orange-100 text-orange-700 px-2 md:px-3 py-1 rounded font-bold text-xs md:text-sm whitespace-nowrap">🟠 ORANGE</div>
+            <div className="text-xs md:text-sm text-gray-700">
               <div className="font-semibold text-orange-700">Follow Up Needed</div>
               <div className="text-gray-600">Call was made but needs follow-up action</div>
             </div>
           </div>
-          <div className="flex gap-3 items-start">
-            <div className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded font-bold">🟡 YELLOW</div>
-            <div className="text-sm text-gray-700">
+          <div className="flex gap-2 md:gap-3 items-start">
+            <div className="bg-yellow-100 text-yellow-700 px-2 md:px-3 py-1 rounded font-bold text-xs md:text-sm whitespace-nowrap">🟡 YELLOW</div>
+            <div className="text-xs md:text-sm text-gray-700">
               <div className="font-semibold text-yellow-700">Confirmed</div>
               <div className="text-gray-600">Customer agreed to service but not yet completed</div>
             </div>
           </div>
-          <div className="flex gap-3 items-start">
-            <div className="bg-green-100 text-green-700 px-3 py-1 rounded font-bold">🟢 GREEN</div>
-            <div className="text-sm text-gray-700">
+          <div className="flex gap-2 md:gap-3 items-start">
+            <div className="bg-green-100 text-green-700 px-2 md:px-3 py-1 rounded font-bold text-xs md:text-sm whitespace-nowrap">🟢 GREEN</div>
+            <div className="text-xs md:text-sm text-gray-700">
               <div className="font-semibold text-green-700">Completed</div>
               <div className="text-gray-600">Service has been completed for this customer</div>
             </div>
@@ -418,47 +418,49 @@ export default function ServiceCalls() {
 
       {/* Filters */}
       <div className="card mb-4">
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-col md:flex-row flex-wrap gap-2 md:gap-2 items-stretch md:items-center">
           <input
             type="text"
             placeholder="Search customer name or mobile..."
-            className="input flex-1 min-w-[200px]"
+            className="input flex-1 min-w-[200px] md:min-w-0"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
           
-          <select className="input w-auto" value={filter} onChange={e => setFilter(e.target.value)}>
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="called">Called</option>
-            <option value="overdue">Overdue</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="done">Done</option>
-          </select>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full md:w-auto">
+            <select className="input" value={filter} onChange={e => setFilter(e.target.value)}>
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="called">Called</option>
+              <option value="overdue">Overdue</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="done">Done</option>
+            </select>
 
-          <select className="input w-auto" value={colorFilter} onChange={e => setColorFilter(e.target.value)}>
-            <option value="all">All Colors</option>
-            <option value="red">🔴 Red - No Action</option>
-            <option value="orange">🟠 Orange - Follow Up</option>
-            <option value="yellow">🟡 Yellow - Confirmed</option>
-            <option value="green">🟢 Green - Completed</option>
-          </select>
+            <select className="input" value={colorFilter} onChange={e => setColorFilter(e.target.value)}>
+              <option value="all">All Colors</option>
+              <option value="red">🔴 Red</option>
+              <option value="orange">🟠 Orange</option>
+              <option value="yellow">🟡 Yellow</option>
+              <option value="green">🟢 Green</option>
+            </select>
 
-          <select className="input w-auto" value={serviceTypeFilter} onChange={e => setServiceTypeFilter(e.target.value)}>
-            <option value="all">All Services</option>
-            <option value="general_service">General Service</option>
-            <option value="inline_set">Inline Set</option>
-            <option value="membrane">Membrane</option>
-          </select>
+            <select className="input col-span-2 md:col-span-1" value={serviceTypeFilter} onChange={e => setServiceTypeFilter(e.target.value)}>
+              <option value="all">All Services</option>
+              <option value="general_service">General Service</option>
+              <option value="inline_set">Inline Set</option>
+              <option value="membrane">Membrane</option>
+            </select>
 
-          <button className="btn btn-sm" onClick={() => { setSearchTerm(''); setFilter('all'); setColorFilter('all'); setServiceTypeFilter('all'); setStatFilter('all'); }}>
-            Clear
-          </button>
+            <button className="btn btn-sm col-span-2 md:col-span-1" onClick={() => { setSearchTerm(''); setFilter('all'); setColorFilter('all'); setServiceTypeFilter('all'); setStatFilter('all'); }}>
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Enquiries table */}
-      <div className="card overflow-auto">
+      {/* Enquiries table - Desktop view */}
+      <div className="card overflow-auto hidden md:block">
         {filtered.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             {searchTerm || filter !== 'all' || serviceTypeFilter !== 'all' 
@@ -522,7 +524,7 @@ export default function ServiceCalls() {
                         </span>
                       </td>
                       <td>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-wrap">
                           {enq.call_status === 'pending' && (
                             <button className="btn btn-xs bg-blue-500 text-white" onClick={() => openCallModal(enq)}>
                               📞 Call
@@ -587,16 +589,158 @@ export default function ServiceCalls() {
         )}
       </div>
 
+      {/* Enquiries card view - Mobile only */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="card text-center py-8 text-gray-400">
+            {searchTerm || filter !== 'all' || serviceTypeFilter !== 'all' 
+              ? 'No enquiries match filters'
+              : 'No service call enquiries yet. Click "Generate New Enquiries" to create them.'}
+          </div>
+        ) : (
+          <>
+            {paginatedEnquiries.map(enq => {
+              const isOverdue = new Date(enq.due_date) < new Date() && !['service_done', 'skipped'].includes(enq.call_status)
+              const daysUntil = Math.floor((new Date(enq.due_date) - new Date()) / (1000 * 60 * 60 * 24))
+              
+              // Determine card background color based on status
+              let cardBgColor = ''
+              if (isOverdue) {
+                cardBgColor = 'bg-red-100'
+              } else if (enq.call_status === 'service_done') {
+                cardBgColor = 'bg-green-50'
+              } else if (['called_no_answer', 'called_callback'].includes(enq.call_status)) {
+                cardBgColor = 'bg-orange-50'
+              } else if (enq.call_status === 'confirmed') {
+                cardBgColor = 'bg-yellow-50'
+              } else if (enq.call_status === 'pending') {
+                cardBgColor = 'bg-red-50'
+              }
+              
+              return (
+                <div key={enq.id} className={`card p-4 ${cardBgColor}`}>
+                  {/* Header: Customer name and Status */}
+                  <div className="flex justify-between items-start gap-2 mb-3 pb-2 border-b">
+                    <div>
+                      <div className="font-bold text-gray-900">{enq.customer_name}</div>
+                      <div className="text-sm text-gray-600">{enq.customer_mobile}</div>
+                    </div>
+                    <StatusBadge status={enq.call_status} dueDate={enq.due_date} />
+                  </div>
+
+                  {/* Info grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                    <div>
+                      <div className="text-gray-500 font-semibold">Due Date</div>
+                      <div className="font-medium">{fmtD(enq.due_date)}</div>
+                      <div className={`text-xs mt-1 ${isOverdue ? 'text-orange-600 font-medium' : 'text-gray-400'}`}>
+                        {isOverdue ? `${Math.abs(daysUntil)} days overdue` : daysUntil > 0 ? `in ${daysUntil} days` : 'today'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-gray-500 font-semibold">Service Type</div>
+                      <ServiceTypeLabel type={enq.service_type} />
+                    </div>
+
+                    <div>
+                      <div className="text-gray-500 font-semibold">Area</div>
+                      <div className="text-gray-700">{enq.customer_area}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-gray-500 font-semibold">Last Called</div>
+                      <div className="text-gray-700 text-xs">
+                        {enq.last_called_at ? fmt12(enq.last_called_at) : '−'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-gray-500 font-semibold">Attempts</div>
+                      <span className={`badge ${enq.call_attempts > 2 ? 'badge-danger' : 'badge-gray'}`}>
+                        {enq.call_attempts || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions - stack vertically on mobile */}
+                  <div className="space-y-2 pt-2 border-t">
+                    {enq.call_status === 'pending' && (
+                      <>
+                        <button className="btn btn-sm bg-blue-500 text-white w-full" onClick={() => openCallModal(enq)}>
+                          📞 Record Call
+                        </button>
+                      </>
+                    )}
+                    {['called_no_answer', 'called_callback'].includes(enq.call_status) && (
+                      <>
+                        <button className="btn btn-sm bg-blue-500 text-white w-full" onClick={() => openCallModal(enq)}>
+                          📞 Retry Call
+                        </button>
+                        <button className="btn btn-sm bg-green-500 text-white w-full" onClick={() => openConfirmModal(enq)}>
+                          ✓ Confirm Service
+                        </button>
+                      </>
+                    )}
+                    {enq.call_status === 'confirmed' && (
+                      <button className="btn btn-sm bg-green-600 text-white w-full" onClick={() => openServiceModal(enq)}>
+                        ✓ Complete Service
+                      </button>
+                    )}
+                    {!['service_done', 'skipped'].includes(enq.call_status) && (
+                      <button className="btn btn-sm bg-gray-400 text-white w-full" onClick={() => skipService(enq)}>
+                        ⊘ Skip Service
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Pagination Controls - Mobile */}
+            {totalPages > 1 && (
+              <div className="card p-3">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-xs text-gray-600">
+                    {startIndex + 1}–{Math.min(endIndex, filtered.length)} of {filtered.length}
+                  </div>
+                  <div className="text-sm font-medium">{currentPage}/{totalPages}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="btn btn-sm flex-1"
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Previous
+                  </button>
+                  <button
+                    className="btn btn-sm flex-1"
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Call Modal */}
       {showCallModal && selectedEnquiry && (
         <Modal title="Record Call" onClose={() => setShowCallModal(false)}>
-          <div className="space-y-3">
-            <div>                                                                                                                                                                               
-              <div className="font-medium mb-1">{selectedEnquiry.customer_name}</div>
-              <div className="text-sm text-gray-600">
-                {selectedEnquiry.customer_mobile} • {selectedEnquiry.customer_area}
+          <div className="space-y-3 max-h-[60vh] md:max-h-none overflow-y-auto">
+            <div className="pb-2 border-b">                                                                                                                                                                               
+              <div className="font-bold text-gray-900">{selectedEnquiry.customer_name}</div>
+              <div className="text-sm text-gray-600 mt-1">
+                📞 {selectedEnquiry.customer_mobile}
               </div>
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-sm text-gray-600">
+                📍 {selectedEnquiry.customer_area}
+              </div>
+              <div className="text-sm text-gray-500 mt-2">
                 <ServiceTypeLabel type={selectedEnquiry.service_type} /> due {fmtD(selectedEnquiry.due_date)}
               </div>
             </div>
@@ -624,8 +768,8 @@ export default function ServiceCalls() {
           </div>
 
           <ModalFooter>
-            <button className="btn" onClick={() => setShowCallModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={recordCall}>Save Call Record</button>
+            <button className="btn flex-1 md:flex-none" onClick={() => setShowCallModal(false)}>Cancel</button>
+            <button className="btn btn-primary flex-1 md:flex-none" onClick={recordCall}>Save Call Record</button>
           </ModalFooter>
         </Modal>
       )}
@@ -633,10 +777,10 @@ export default function ServiceCalls() {
       {/* Confirm Service Modal */}
       {showConfirmModal && selectedEnquiry && (
         <Modal title="Confirm Service Appointment" onClose={() => setShowConfirmModal(false)}>
-          <div className="space-y-3">
-            <div>
-              <div className="font-medium mb-1">{selectedEnquiry.customer_name}</div>
-              <div className="text-sm text-gray-600">
+          <div className="space-y-3 max-h-[60vh] md:max-h-none overflow-y-auto">
+            <div className="pb-2 border-b">
+              <div className="font-bold text-gray-900">{selectedEnquiry.customer_name}</div>
+              <div className="text-sm text-gray-600 mt-1">
                 <ServiceTypeLabel type={selectedEnquiry.service_type} />
               </div>
             </div>
@@ -645,7 +789,7 @@ export default function ServiceCalls() {
               <label className="label">Scheduled Date</label>
               <input
                 type="date"
-                className="input"
+                className="input w-full"
                 value={scheduledDate}
                 onChange={e => setScheduledDate(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
@@ -654,8 +798,8 @@ export default function ServiceCalls() {
           </div>
 
           <ModalFooter>
-            <button className="btn" onClick={() => setShowConfirmModal(false)}>Cancel</button>
-            <button className="btn btn-primary bg-green-500" onClick={confirmService}>
+            <button className="btn flex-1 md:flex-none" onClick={() => setShowConfirmModal(false)}>Cancel</button>
+            <button className="btn btn-primary bg-green-500 flex-1 md:flex-none" onClick={confirmService}>
               ✓ Confirm Service
             </button>
           </ModalFooter>
@@ -665,10 +809,10 @@ export default function ServiceCalls() {
       {/* Complete Service Modal */}
       {showServiceModal && selectedEnquiry && (
         <Modal title="Complete Service" onClose={() => setShowServiceModal(false)}>
-          <div className="space-y-3">
-            <div>
-              <div className="font-medium mb-1">{selectedEnquiry.customer_name}</div>
-              <div className="text-sm text-gray-600">
+          <div className="space-y-3 max-h-[70vh] md:max-h-none overflow-y-auto">
+            <div className="pb-2 border-b">
+              <div className="font-bold text-gray-900">{selectedEnquiry.customer_name}</div>
+              <div className="text-sm text-gray-600 mt-1">
                 <ServiceTypeLabel type={selectedEnquiry.service_type} />
               </div>
             </div>
@@ -677,18 +821,18 @@ export default function ServiceCalls() {
               <label className="label">Service Date</label>
               <input
                 type="date"
-                className="input"
+                className="input w-full"
                 value={serviceDate}
                 onChange={e => setServiceDate(e.target.value)}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="label">Total Amount (₹)</label>
                 <input
                   type="number"
-                  className="input"
+                  className="input w-full"
                   value={serviceAmount}
                   onChange={e => setServiceAmount(e.target.value)}
                 />
@@ -697,7 +841,7 @@ export default function ServiceCalls() {
                 <label className="label">Received Amount (₹)</label>
                 <input
                   type="number"
-                  className="input"
+                  className="input w-full"
                   value={receivedAmount}
                   onChange={e => setReceivedAmount(e.target.value)}
                 />
@@ -707,7 +851,7 @@ export default function ServiceCalls() {
             <div>
               <label className="label">Spares Replaced</label>
               <textarea
-                className="input"
+                className="input w-full"
                 rows={2}
                 value={sparesReplaced}
                 onChange={e => setSparesReplaced(e.target.value)}
@@ -716,15 +860,15 @@ export default function ServiceCalls() {
             </div>
 
             {serviceAmount > 0 && (
-              <div className="bg-yellow-50 p-2 rounded text-xs">
-                <div className="font-medium">Pending: ₹{(Number(serviceAmount) - Number(receivedAmount)).toFixed(2)}</div>
+              <div className="bg-yellow-50 p-3 rounded text-sm border border-yellow-200">
+                <div className="font-bold text-yellow-900">Pending: ₹{(Number(serviceAmount) - Number(receivedAmount)).toFixed(2)}</div>
               </div>
             )}
           </div>
 
           <ModalFooter>
-            <button className="btn" onClick={() => setShowServiceModal(false)}>Cancel</button>
-            <button className="btn btn-primary bg-green-600" onClick={completeService}>
+            <button className="btn flex-1 md:flex-none" onClick={() => setShowServiceModal(false)}>Cancel</button>
+            <button className="btn btn-primary bg-green-600 flex-1 md:flex-none" onClick={completeService}>
               ✓ Complete Service
             </button>
           </ModalFooter>
