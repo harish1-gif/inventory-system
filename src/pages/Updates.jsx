@@ -7,6 +7,7 @@ export default function Updates() {
   const [logs, setLogs]           = useState([])
   const [monthDate, setMonthDate] = useState(new Date())
   const [selectedDate, setSel]    = useState(null)
+  const [selectedCat, setSelCat]  = useState(null)
   const [search, setSearch]       = useState('')
   const [catFilter, setCat]       = useState('all')
   const [roleFilter, setRole]     = useState('all')
@@ -37,7 +38,7 @@ export default function Updates() {
   const byDate = {}
   logs.forEach(l => { const d=l.logged_at.split('T')[0]; if(!byDate[d])byDate[d]=[]; byDate[d].push(l) })
 
-  const selLogs = selectedDate ? (byDate[selectedDate]||[]) : []
+  const selLogs = selectedDate ? (byDate[selectedDate]||[]) : (selectedCat ? logs.filter(l=>l.category===selectedCat) : [])
   const filtered = selLogs.filter(l=>{
     const matchSearch = !search || l.description?.toLowerCase().includes(search.toLowerCase()) || l.by_name?.toLowerCase().includes(search.toLowerCase())
     const matchCat  = catFilter==='all' || l.category===catFilter
@@ -56,9 +57,9 @@ export default function Updates() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="page-title mb-0">Updates</h1>
         <div className="flex gap-2 items-center">
-          <button className="btn btn-sm" onClick={()=>{setMonthDate(m=>subMonths(m,1));setSel(null)}}>← Prev</button>
+          <button className="btn btn-sm" onClick={()=>{setMonthDate(m=>subMonths(m,1));setSel(null);setSelCat(null)}}>← Prev</button>
           <span className="font-medium text-sm min-w-[100px] text-center">{MONTHS[month]} {year}</span>
-          <button className="btn btn-sm" onClick={()=>{setMonthDate(m=>addMonths(m,1));setSel(null)}}>Next →</button>
+          <button className="btn btn-sm" onClick={()=>{setMonthDate(m=>addMonths(m,1));setSel(null);setSelCat(null)}}>Next →</button>
         </div>
       </div>
 
@@ -82,7 +83,7 @@ export default function Updates() {
             const isSel   = dateStr===selectedDate
             const count   = hasData ? byDate[dateStr].length : 0
             return (
-              <button key={day} onClick={()=>setSel(isSel?null:dateStr)}
+              <button key={day} onClick={()=>{setSel(isSel?null:dateStr); setSelCat(null)}}
                 className={`relative p-2 rounded-lg text-center text-xs transition-all ${
                   isSel    ? 'bg-brand text-white font-medium' :
                   hasData  ? 'bg-blue-50 text-blue-700 font-medium hover:bg-blue-100 border border-blue-200' :
@@ -100,22 +101,30 @@ export default function Updates() {
         <div className="border-t border-gray-50 pt-3 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
           {Object.entries(CAT_LABELS).map(([key,label])=>{
             const cnt = logs.filter(l=>l.category===key).length
+            const isSel = selectedCat === key
             return (
-              <div key={key} className="text-center">
+              <button key={key} onClick={()=>{setSelCat(isSel?null:key); setSel(null)}}
+                className={`text-center p-2 rounded-lg transition-all ${
+                  isSel ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
+                }`}>
                 <div className="text-lg font-medium" style={{color:CAT_COLORS[key]}}>{cnt}</div>
                 <div className="text-xs text-gray-400">{CAT_ICONS[key]} {label}</div>
-              </div>
+              </button>
             )
           })}
         </div>
       </div>
 
       {/* Selected day detail */}
-      {selectedDate && (
+      {(selectedDate || selectedCat) && (
         <div className="card">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium">
-              Changes on {selectedDate} <span className="text-gray-400 font-normal text-xs">({selLogs.length} total)</span>
+              {selectedDate ? (
+                <>Changes on {selectedDate} <span className="text-gray-400 font-normal text-xs">({selLogs.length} total)</span></>
+              ) : (
+                <>{CAT_ICONS[selectedCat]} {CAT_LABELS[selectedCat]} for {MONTHS[month]} {year} <span className="text-gray-400 font-normal text-xs">({selLogs.length} total)</span></>
+              )}
             </div>
           </div>
 
@@ -163,9 +172,9 @@ export default function Updates() {
         </div>
       )}
 
-      {!selectedDate && !loading && (
+      {!selectedDate && !loading && !selectedCat && (
         <div className="card text-center py-10">
-          <p className="text-sm text-gray-400">Click a highlighted date to see all changes</p>
+          <p className="text-sm text-gray-400">Click a highlighted date or a category to see all changes</p>
           <p className="text-xs text-gray-300 mt-1">Blue dates have recorded activity · {logs.length} entries this month</p>
         </div>
       )}

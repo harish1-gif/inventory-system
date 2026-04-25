@@ -46,6 +46,7 @@ export default function TechTracker() {
   const [pauseType, setPauseType]   = useState('break')
   const [pauseReason, setPauseReason] = useState('')
   const [jobPauses, setJobPauses]   = useState({})
+  const [detailJob, setDetailJob]   = useState(null)
 
   const isTech = user.role === 'technician'
   const isMgr  = user.role === 'manager' || user.role === 'admin'
@@ -329,14 +330,15 @@ export default function TechTracker() {
           const activePause = jobPauses[job.id]
 
           return (
-            <div key={job.id} className={`card ${isCompleted ? 'opacity-70 border-gray-100' : ''} ${isPaused ? 'border-orange-200 bg-orange-50' : ''}`}>
+            <div key={job.id} className={`card ${isCompleted ? 'opacity-70 border-gray-100' : ''} ${isPaused ? 'border-orange-200 bg-orange-50' : ''} cursor-pointer hover:shadow-md transition-shadow`}
+              onClick={()=>setDetailJob(job)}>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="font-medium">{job.customer_name}</div>
                   <div className="text-xs text-gray-500">{job.customer_location}</div>
                   {isMgr && job.service_type && <div className="text-xs bg-blue-50 text-blue-700 mt-1 px-2 py-0.5 rounded w-fit">📋 {job.service_type}</div>}
                   <div className="text-xs text-gray-500 mt-1">Technician: <strong>{job.assigned_to_name||'Unassigned'}</strong></div>
-                  <div className="text-xs text-gray-500">Mobile: <strong>{customers.find(c=>c.name===job.customer_name)?.mobile||'—'}</strong></div>
+                  <div className="text-xs text-gray-500">Mobile: <strong>{job.customer_id ? customers.find(c=>c.id===job.customer_id)?.mobile : customers.find(c=>c.name===job.customer_name)?.mobile || '—'}</strong></div>
                   <div className="flex items-center gap-1 mt-0.5">{job.zones && <><span className="w-2 h-2 rounded-full" style={{background:job.zones.color}}/><span className="text-xs text-gray-500">{job.zones.name}</span></>}</div>
                 </div>
                 <div className="text-right">
@@ -607,6 +609,64 @@ export default function TechTracker() {
             <button className="btn btn-sm bg-red-50 text-red-700 border-red-200" onClick={()=>handleApprove(approveModal,false)}>Reject</button>
             <button className="btn btn-sm" onClick={()=>setApprove(null)}>Cancel</button>
             <button className="btn-primary btn-sm rounded-lg" onClick={()=>handleApprove(approveModal,true)}>Approve +{extraHours}h</button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {/* Job detail modal */}
+      {detailJob && (
+        <Modal title="Job Details" onClose={()=>setDetailJob(null)} size="lg">
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 bg-gray-50 rounded-lg p-3">
+              <div><span className="text-gray-500">Customer:</span> <strong>{detailJob.customer_name}</strong></div>
+              <div><span className="text-gray-500">Mobile:</span> <strong>{detailJob.customer_id ? customers.find(c=>c.id===detailJob.customer_id)?.mobile : customers.find(c=>c.name===detailJob.customer_name)?.mobile || 'Not found'}</strong></div>
+              <div><span className="text-gray-500">Location:</span> <strong>{detailJob.customer_location||'—'}</strong></div>
+              <div><span className="text-gray-500">Service type:</span> <strong>{detailJob.service_type||'—'}</strong></div>
+              <div><span className="text-gray-500">Technician:</span> <strong>{detailJob.assigned_to_name||'Unassigned'}</strong></div>
+              <div><span className="text-gray-500">Zone:</span> {detailJob.zones && <><span className="w-2 h-2 rounded-full inline-block" style={{background:detailJob.zones.color}}/> {detailJob.zones.name}</>}</div>
+              <div><span className="text-gray-500">Status:</span> <span className={`font-medium ${statusColor[detailJob.status]||'text-gray-600'}`}>{detailJob.status}</span></div>
+              <div><span className="text-gray-500">Hours allowed:</span> <strong>{detailJob.working_hours_allowed + (detailJob.extra_hours_approved||0)}h</strong></div>
+              {detailJob.long_distance && <div className="col-span-2"><span className="badge badge-warn">Long distance</span></div>}
+            </div>
+
+            {detailJob.start_time && (
+              <div className="space-y-2 bg-blue-50 rounded-lg p-3">
+                <div className="font-medium text-blue-900">Timeline</div>
+                <div className="text-xs space-y-1">
+                  <div><span className="text-gray-600">Started:</span> {fmt12(detailJob.start_time)}</div>
+                  {detailJob.travel_start_time && <div><span className="text-gray-600">Travel started:</span> {fmt12(detailJob.travel_start_time)}</div>}
+                  {detailJob.travel_end_time && <div><span className="text-gray-600">Arrived at site:</span> {fmt12(detailJob.travel_end_time)} <span className="text-gray-400">({detailJob.travel_duration_minutes} mins)</span></div>}
+                  {detailJob.end_time && <div><span className="text-gray-600">Completed:</span> {fmt12(detailJob.end_time)}</div>}
+                  {detailJob.total_duration_minutes && <div className="font-medium"><span className="text-gray-600">Total time:</span> {Math.floor(detailJob.total_duration_minutes/60)}h {detailJob.total_duration_minutes%60}m</div>}
+                </div>
+              </div>
+            )}
+
+            {detailJob.status === 'completed' && detailJob.completion_report && (
+              <div className="space-y-2 bg-green-50 rounded-lg p-3">
+                <div className="font-medium text-green-900">Completion Report</div>
+                <div className="text-xs space-y-1">
+                  {detailJob.completion_report.services_done?.length > 0 && <div><span className="text-gray-600">Services:</span> {detailJob.completion_report.services_done.join(', ')}</div>}
+                  {detailJob.completion_report.spares_used && <div><span className="text-gray-600">Spares used:</span> {detailJob.completion_report.spares_used}</div>}
+                  {detailJob.cash_collected > 0 && <div><span className="text-gray-600">Cash collected:</span> <strong>Rs.{detailJob.cash_collected}</strong></div>}
+                  {detailJob.tds_raw_water && <div><span className="text-gray-600">TDS In/Out:</span> {detailJob.tds_raw_water}/{detailJob.tds_permeate} ppm</div>}
+                  {detailJob.problems_faced && <div><span className="text-gray-600">Issues:</span> {detailJob.problems_faced}</div>}
+                  {detailJob.completion_report.permeate_quality && <div><span className="text-gray-600">Quality:</span> {detailJob.completion_report.permeate_quality}</div>}
+                </div>
+              </div>
+            )}
+
+            {jobPauses[detailJob.id] && (
+              <div className="bg-orange-50 rounded-lg p-3 text-xs">
+                <div className="font-medium text-orange-900">Current Pause</div>
+                <div><span className="text-gray-600">{PAUSE_TYPES.find(p=>p.value===jobPauses[detailJob.id].pause_type)?.label}</span></div>
+                {jobPauses[detailJob.id].pause_reason && <div><span className="text-gray-600">Reason:</span> {jobPauses[detailJob.id].pause_reason}</div>}
+                <div><span className="text-gray-600">Paused:</span> {fmt12(jobPauses[detailJob.id].paused_at)}</div>
+              </div>
+            )}
+          </div>
+          <ModalFooter>
+            <button className="btn" onClick={()=>setDetailJob(null)}>Close</button>
           </ModalFooter>
         </Modal>
       )}

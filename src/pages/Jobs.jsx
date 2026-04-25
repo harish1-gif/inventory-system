@@ -19,7 +19,7 @@ export default function Jobs() {
   const canCreate = !isTech
 
   const blank = { customer_id:'', customer_name:'', customer_location:'', zone_id:'', assigned_to:'', assigned_to_name:'',
-    service_type:'General Service', working_hours_allowed:2, long_distance:false,
+    service_type:'General Service', working_hours:0, working_minutes:0, long_distance:false,
     extra_hours_approved:0, notes:'' }
   const [form, setForm] = useState(blank)
 
@@ -59,6 +59,7 @@ export default function Jobs() {
   async function saveJob() {
     if (!form.customer_name.trim()) return
     const t = techs.find(t=>t.id===form.assigned_to)
+    const totalMinutes = parseInt(form.working_hours)*60 + parseInt(form.working_minutes)
     const payload = {
       customer_name: form.customer_name,
       customer_location: form.customer_location,
@@ -66,7 +67,7 @@ export default function Jobs() {
       assigned_to: form.assigned_to,
       assigned_to_name: t?.name||'',
       service_type: form.service_type,
-      working_hours_allowed: form.working_hours_allowed,
+      working_hours_allowed: totalMinutes,
       long_distance: form.long_distance,
       extra_hours_approved: form.extra_hours_approved,
       notes: form.notes,
@@ -152,7 +153,7 @@ export default function Jobs() {
                 <td className="td font-medium">{j.assigned_to_name||'—'}</td>
                 <td className="td"><span className="badge badge-gray">{j.service_type}</span></td>
                 <td className="td">
-                  {j.working_hours_allowed}h
+                  {j.working_hours_allowed ? `${Math.floor(j.working_hours_allowed/60)}h ${j.working_hours_allowed%60}m` : '—'}
                   {j.long_distance && <span className="badge badge-warn ml-1">Long dist</span>}
                 </td>
                 <td className="td"><span className={`badge ${statusColor[j.status]||'badge-gray'}`}>{j.status}</span></td>
@@ -228,7 +229,19 @@ export default function Jobs() {
                 {SERVICE_TYPES.map(s=><option key={s}>{s}</option>)}
               </select>
             </div>
-            <div><label className="label">Working hours allowed</label><input type="number" step="0.5" className="input" value={form.working_hours_allowed} onChange={e=>setForm(f=>({...f,working_hours_allowed:e.target.value}))}/></div>
+            <div>
+              <label className="label">Working hours allowed</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <div className="text-xs text-gray-500 mb-1">Hours</div>
+                  <input type="number" min="0" className="input" placeholder="0" value={form.working_hours} onChange={e=>setForm(f=>({...f,working_hours:e.target.value||0}))}/>
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs text-gray-500 mb-1">Minutes</div>
+                  <input type="number" min="0" max="59" className="input" placeholder="0" value={form.working_minutes} onChange={e=>setForm(f=>({...f,working_minutes:e.target.value||0}))}/>
+                </div>
+              </div>
+            </div>
             <div className="col-span-2 flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.long_distance} onChange={e=>setForm(f=>({...f,long_distance:e.target.checked}))} className="rounded"/>
@@ -261,7 +274,7 @@ export default function Jobs() {
               <div><span className="text-gray-400">Location:</span> {detailModal.customer_location||'—'}</div>
               <div><span className="text-gray-400">Service:</span> <span className="badge badge-gray">{detailModal.service_type}</span></div>
               <div><span className="text-gray-400">Technician:</span> <strong>{detailModal.assigned_to_name||'—'}</strong></div>
-              <div><span className="text-gray-400">Hours allowed:</span> {detailModal.working_hours_allowed}h</div>
+              <div><span className="text-gray-400">Hours allowed:</span> {detailModal.working_hours_allowed ? `${Math.floor(detailModal.working_hours_allowed/60)}h ${detailModal.working_hours_allowed%60}m` : '—'}</div>
               <div><span className="text-gray-400">Status:</span> <span className={`badge ${statusColor[detailModal.status]}`}>{detailModal.status}</span></div>
               {detailModal.long_distance && <div className="col-span-2"><span className="badge badge-warn">Long distance</span> — {detailModal.extra_hours_approved}h extra approved</div>}
             </div>

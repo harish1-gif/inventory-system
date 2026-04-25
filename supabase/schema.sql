@@ -1,5 +1,5 @@
 -- ============================================================
--- RO INVENTORY SYSTEM — FULL SCHEMA v2
+-- RO INVENTORY SYSTEM - FULL SCHEMA v2
 -- Run entire file in Supabase SQL Editor
 -- ============================================================
 create extension if not exists "uuid-ossp";
@@ -60,21 +60,21 @@ create table update_log (
 );
 
 -- stock: business = 'b2c' or 'b2b'
-create table stock (
-  id                  uuid primary key default uuid_generate_v4(),
-  business            text not null check (business in ('b2c','b2b')),
-  name                text not null,
-  category            text default 'General',
-  qty                 int default 0,
-  min_qty             int default 5,
-  landing_price       numeric(10,2) default 0,
-  purchase_price      numeric(10,2) default 0,
-  selling_price       numeric(10,2) default 0,
-  notes               text default '',
-  last_updated_by     text,
-  last_updated_at     timestamptz default now(),
-  created_at          timestamptz default now()
-);
+  create table stock (
+    id                  uuid primary key default uuid_generate_v4(),
+    business            text not null check (business in ('b2c','b2b')),
+    name                text not null,
+    category            text default 'General',
+    qty                 int default 0,
+    min_qty             int default 5,
+    landing_price       numeric(10,2) default 0,
+    purchase_price      numeric(10,2) default 0,
+    selling_price       numeric(10,2) default 0,
+    notes               text default '',
+    last_updated_by     text,
+    last_updated_at     timestamptz default now(),
+    created_at          timestamptz default now()
+  );
 
 create table stock_movements (
   id            uuid primary key default uuid_generate_v4(),
@@ -348,7 +348,7 @@ insert into app_settings (key, value) values
   ('b2b_monthly_target','3500000');
 
 -- ============================================================
--- ZONES — Around Kanchipuram Bus Stand (~80km radius)
+-- ZONES - Around Kanchipuram Bus Stand (~80km radius)
 -- ============================================================
 insert into zones (id, name, description, color, km_from_kpm, created_by) values
   ('bbbbbbbb-0000-0000-0000-000000000001','Kanchipuram Central',    'KPM town & surrounding 10km',                '#185FA5', 0,  'MANAGER'),
@@ -360,7 +360,7 @@ insert into zones (id, name, description, color, km_from_kpm, created_by) values
   ('bbbbbbbb-0000-0000-0000-000000000007','Guduvanchery / Tambaram','Guduvanchery, Urapakkam, Tambaram',          '#BA7517', 55, 'MANAGER'),
   ('bbbbbbbb-0000-0000-0000-000000000008','Maduranthakam Zone',     'Maduranthakam, Cheyyur, coastal area',       '#0C447C', 55, 'MANAGER'),
   ('bbbbbbbb-0000-0000-0000-000000000009','Thirukalukundram Zone',  'Thirukalukundram, Mahabalipuram road area',  '#712B13', 60, 'MANAGER'),
-  ('bbbbbbbb-0000-0000-0000-000000000010','Vellore Border Zone',    'Towards Vellore — Sholingur, Arcot',         '#3C3489', 80, 'MANAGER');
+  ('bbbbbbbb-0000-0000-0000-000000000010','Vellore Border Zone',    'Towards Vellore - Sholingur, Arcot',         '#3C3489', 80, 'MANAGER');
 
 -- Assign technicians to zones
 insert into zone_technicians (zone_id, technician_id, assigned_by) values
@@ -373,7 +373,7 @@ insert into zone_technicians (zone_id, technician_id, assigned_by) values
   ('bbbbbbbb-0000-0000-0000-000000000007','aaaaaaaa-0000-0000-0000-000000000003','MANAGER');
 
 -- ============================================================
--- B2C STOCK — RO Spare Parts (25 items)
+-- B2C STOCK - RO Spare Parts (25 items)
 -- ============================================================
 insert into stock (business, name, category, qty, min_qty, landing_price, purchase_price, selling_price, last_updated_by) values
   ('b2c','250 SPUN Filter',       'Filter',         7,  5,  12,  15,  30, 'MANAGER'),
@@ -403,7 +403,7 @@ insert into stock (business, name, category, qty, min_qty, landing_price, purcha
   ('b2c','Mineral Cartridge',     'Filter',         1,  2, 170, 200, 400, 'MANAGER');
 
 -- ============================================================
--- B2B STOCK — Commercial Products (20 items)
+-- B2B STOCK - Commercial Products (20 items)
 -- ============================================================
 insert into stock (business, name, category, qty, min_qty, landing_price, purchase_price, selling_price, last_updated_by) values
   ('b2b','Commercial RO 250 LPH',   'Commercial RO',  3, 1,12000,14000,22000,'MANAGER'),
@@ -428,7 +428,7 @@ insert into stock (business, name, category, qty, min_qty, landing_price, purcha
   ('b2b','UV System 10 LPM',         'UV',             3, 1, 4500, 5200, 9000,'MANAGER');
 
 -- ============================================================
--- B2C PRODUCTS — Retail Items
+-- B2C PRODUCTS - Retail Items
 -- ============================================================
 insert into products (type, name, model, description, category, price) values
   ('b2c','KENT RO Water Purifier','KENT UP', 'Standard wall-mounted RO purifier', 'Water Purifier', 12500),
@@ -443,7 +443,7 @@ insert into products (type, name, model, description, category, price) values
   ('b2c','Water Purifier Filter Combo','3-COMBO', 'Sediment + Carbon + RO membrane bundle', 'Filter Pack', 3500);
 
 -- ============================================================
--- B2B PRODUCTS — Commercial Solutions
+-- B2B PRODUCTS - Commercial Solutions
 -- ============================================================
 insert into products (type, name, model, description, category, price) values
   ('b2b','Commercial RO System 500 LPH','CR-500', 'For offices, schools, hospitals (500 L/hour)', 'Commercial RO', 35000),
@@ -480,8 +480,8 @@ insert into jobs (customer_name, customer_location, zone_id, assigned_to, assign
 insert into update_log (by_name, by_role, category, description, logged_at) values
   ('ADMIN',  'admin',   'stock', 'Received +10 units of 250 SPUN Filter',              '2026-03-10T10:00:00+05:30'),
   ('MANAGER','manager', 'stock', '75 GPD Membrane PP updated: ₹420 → ₹500',            '2026-03-11T11:00:00+05:30'),
-  ('ADMIN',  'admin',   'job',   'Job assigned to RAVI — General Service at KPM Nagar', '2026-03-21T08:30:00+05:30'),
-  ('RAVI',   'technician','job', 'Job accepted — KPM Nagar Flat General Service',       '2026-03-21T09:00:00+05:30'),
+  ('ADMIN',  'admin',   'job',   'Job assigned to RAVI - General Service at KPM Nagar', '2026-03-21T08:30:00+05:30'),
+  ('RAVI',   'technician','job', 'Job accepted - KPM Nagar Flat General Service',       '2026-03-21T09:00:00+05:30'),
   ('MANAGER','manager', 'zone',  'New zone created: Vellore Border Zone',               '2026-03-05T10:00:00+05:30');
 
 -- ============================================================
