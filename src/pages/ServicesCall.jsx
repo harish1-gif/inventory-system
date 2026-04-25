@@ -302,7 +302,6 @@ export default function ServiceCalls() {
 
   // Stats - Calculate dynamically from filtered results
   const stats = {
-<<<<<<< Updated upstream
     total: filtered.length,
     pending: filtered.filter(e => e.call_status === 'pending').length,
     overdue: filtered.filter(e => 
@@ -312,23 +311,6 @@ export default function ServiceCalls() {
     confirmed: filtered.filter(e => e.call_status === 'confirmed').length,
     done: filtered.filter(e => e.call_status === 'service_done').length,
     noAnswer: filtered.filter(e => ['called_no_answer', 'called_callback'].includes(e.call_status)).length,
-=======
-    total: enquiries.length,
-    pending: enquiries.filter(e => e.call_status === 'pending').length,
-    overdue: enquiries.filter(e => {
-      // Check if due date is in the past and not completed/skipped
-      const dueDate = new Date(e.due_date)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      dueDate.setHours(0, 0, 0, 0)
-      return dueDate < today && !['service_done', 'skipped'].includes(e.call_status)
-    }).length,
-    confirmed: enquiries.filter(e => e.call_status === 'confirmed').length,
-    done: enquiries.filter(e => e.call_status === 'service_done').length,
-    calledNoAnswer: enquiries.filter(e => e.call_status === 'called_no_answer').length,
-    calledCallback: enquiries.filter(e => e.call_status === 'called_callback').length,
-    noAnswer: enquiries.filter(e => e.call_status === 'called_no_answer').length,
->>>>>>> Stashed changes
   }
 
   const StatusBadge = ({ status, dueDate }) => {
